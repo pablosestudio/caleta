@@ -9,7 +9,7 @@ La web estática no contiene contraseñas ni una clave privada. Supabase presta 
    Configurar también las URL permitidas de retorno para la URL de GitHub Pages y, más adelante, el dominio definitivo (`/admin.html`), para que funcione el restablecimiento de contraseña.
 3. Ejecutar `migrations/202610260001_caleta_admin_calendar.sql` una sola vez en el SQL Editor del proyecto.
 4. Crear o invitar la cuenta de administración. Copiar su UUID de `auth.users` e insertar en SQL Editor: `insert into public.caleta_admins (user_id) values ('UUID-DE-LA-CUENTA');`. El índice impide registrar una segunda cuenta administradora.
-5. Copiar la URL del proyecto y la clave **publishable** (`sb_publishable_...`) en `assets/supabase-config.js`. Esos dos valores son públicos y solo se usan junto con RLS. No copiar aquí `sb_secret_...`, `service_role`, contraseñas ni claves de Stripe.
+5. La URL y la clave **publishable** (`sb_publishable_...`) se cargan desde el HTML público. Son valores públicos y solo deben usarse junto con RLS. No copiar en el sitio `sb_secret_...`, `service_role`, contraseñas ni claves de Stripe.
 6. Publicar el sitio y abrir `/admin.html`. Verificar el inicio de sesión y que las vistas sin sesión no puedan consultar datos privados.
 
 La persona administradora puede solicitar desde `/admin.html` un restablecimiento por correo. Se recomienda exigir contraseñas de al menos 12 caracteres y activar MFA en Supabase antes de guardar datos reales.
