@@ -62,13 +62,6 @@ document.querySelectorAll("[data-workshop]").forEach((link) => link.addEventList
   bookingType.dispatchEvent(new Event("change"));
 }));
 
-const adminDialog = document.querySelector("#admin-dialog");
-document.querySelector("#admin-access").addEventListener("click", () => adminDialog.showModal());
-document.querySelector("#admin-close").addEventListener("click", () => adminDialog.close());
-adminDialog.addEventListener("click", (event) => {
-  if (event.target === adminDialog) adminDialog.close();
-});
-
 const dateInput = document.querySelector('input[name="date"]');
 const today = new Date();
 dateInput.min = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);

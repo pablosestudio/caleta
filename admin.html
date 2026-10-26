@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#f7f4ef">
+  <title>Administración — Espacio Caleta</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css?v=20261026-1">
+</head>
+<body>
+  <main class="admin-shell">
+    <section class="login-card" id="login-view" aria-labelledby="login-title">
+      <a class="brand" href="./">CALETA <span>~</span></a>
+      <p class="eyebrow">ÁREA PRIVADA</p>
+      <h1 id="login-title">Qué bueno<br>tenerte <em>de vuelta.</em></h1>
+      <p class="intro">Accede a la agenda y a la gestión de Espacio Caleta.</p>
+      <form id="login-form">
+        <label>Correo electrónico<input name="email" type="email" autocomplete="username" required></label>
+        <label>Contraseña<input name="password" type="password" autocomplete="current-password" required></label>
+        <button class="button button-dark" type="submit">Iniciar sesión <span>↗</span></button>
+        <button class="text-button" id="forgot-password" type="button">He olvidado mi contraseña</button>
+        <p class="message" id="login-message" role="status" aria-live="polite"></p>
+      </form>
+      <a class="back-link" href="./">← Volver a la web</a>
+    </section>
+
+    <section class="login-card is-hidden" id="recovery-view" aria-labelledby="recovery-title">
+      <a class="brand" href="./">CALETA <span>~</span></a>
+      <p class="eyebrow">SEGURIDAD</p><h1 id="recovery-title">Crea una<br><em>nueva contraseña.</em></h1>
+      <form id="recovery-form"><label>Nueva contraseña<input name="password" type="password" minlength="12" autocomplete="new-password" required></label><label>Repite la contraseña<input name="confirmation" type="password" minlength="12" autocomplete="new-password" required></label><button class="button button-dark" type="submit">Guardar contraseña <span>↗</span></button><p class="message" id="recovery-message" role="status" aria-live="polite"></p></form>
+    </section>
+
+    <section class="dashboard is-hidden" id="dashboard-view" aria-labelledby="dashboard-title">
+      <header class="dashboard-header">
+        <a class="brand" href="./">CALETA <span>~</span></a>
+        <div class="header-actions"><span id="admin-email"></span><button class="button button-outline" id="logout" type="button">Cerrar sesión</button></div>
+      </header>
+      <div class="dashboard-heading"><div><p class="eyebrow">GESTIÓN DE CALETA</p><h1 id="dashboard-title">Tu espacio,<br><em>en orden.</em></h1></div><p>Agenda, solicitudes y programación en un solo lugar.</p></div>
+      <nav class="tabs" aria-label="Secciones del panel">
+        <button class="tab is-active" data-panel="calendar-panel" type="button">Calendario</button>
+        <button class="tab" data-panel="requests-panel" type="button">Solicitudes</button>
+        <button class="tab" data-panel="workshops-panel" type="button">Talleres</button>
+        <button class="tab" data-panel="rates-panel" type="button">Tarifas</button>
+      </nav>
+      <section class="panel" id="calendar-panel">
+        <div class="panel-title"><div><p class="eyebrow">DISPONIBILIDAD</p><h2>Calendario</h2></div><div class="calendar-actions"><button class="button button-outline" id="new-block" type="button">Bloquear fecha</button><button class="button button-dark" id="new-availability" type="button">Publicar disponibilidad <span>+</span></button></div></div>
+        <div class="calendar-toolbar"><button class="icon-button" id="previous-month" aria-label="Mes anterior" type="button">←</button><h3 id="month-label"></h3><button class="icon-button" id="next-month" aria-label="Mes siguiente" type="button">→</button><button class="text-button today-button" id="today-button" type="button">Hoy</button></div>
+        <div class="calendar-legend"><span><i class="legend-dot available"></i>Disponible</span><span><i class="legend-dot held"></i>Solicitud pendiente</span><span><i class="legend-dot busy"></i>Reservado / taller</span><span><i class="legend-dot blocked"></i>Bloqueado</span></div>
+        <div class="calendar-grid" id="calendar-grid" role="grid" aria-label="Calendario de reservas"></div>
+        <p class="panel-note" id="calendar-note">Los días sin ocupaciones registradas aparecen como disponibles. Una solicitud pendiente mantiene su fecha o plazas bloqueadas hasta que Caleta la gestione.</p>
+      </section>
+      <section class="panel is-hidden" id="requests-panel"><div class="panel-title"><div><p class="eyebrow">BANDEJA DE ENTRADA</p><h2>Solicitudes</h2></div></div><div id="requests-list" class="record-list"></div></section>
+      <section class="panel is-hidden" id="workshops-panel"><div class="panel-title"><div><p class="eyebrow">PROGRAMACIÓN</p><h2>Talleres</h2></div><button class="button button-dark" id="new-workshop" type="button">Nuevo taller <span>+</span></button></div><div id="workshops-list" class="record-list"></div></section>
+      <section class="panel is-hidden" id="rates-panel"><div class="panel-title"><div><p class="eyebrow">PRECIOS ORIENTATIVOS</p><h2>Tarifas</h2></div><button class="button button-dark" id="new-rate" type="button">Añadir tarifa <span>+</span></button></div><div id="rates-list" class="record-list"></div><p class="panel-note">La señal se define para cada solicitud aceptada. Nunca se calcula automáticamente a partir de la tarifa orientativa.</p></section>
+      <p class="dashboard-status" id="dashboard-status" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <dialog id="block-dialog" class="editor-dialog"><form id="block-form"><button class="dialog-close" type="button" data-close aria-label="Cerrar">×</button><p class="eyebrow">AGENDA</p><h2>Bloquear una fecha</h2><label>Fecha<input name="date" type="date" required></label><label>Horario<select name="period" required><option value="full">Día completo</option><option value="morning">Mañana · 09:30–14:00</option><option value="afternoon">Tarde · 16:00–21:30</option></select></label><label>Motivo<input name="title" maxlength="120" placeholder="Cierre, evento privado…" required></label><button class="button button-dark" type="submit">Guardar bloqueo <span>↗</span></button></form></dialog>
+  <dialog id="availability-dialog" class="editor-dialog"><form id="availability-form"><button class="dialog-close" type="button" data-close aria-label="Cerrar">×</button><p class="eyebrow">DISPONIBILIDAD</p><h2>Publicar una fecha libre</h2><label>Fecha<input name="date" type="date" required></label><label>Horario<select name="period" required><option value="morning">Mañana · 09:30–14:00</option><option value="afternoon">Tarde · 16:00–21:30</option><option value="full">Día completo · 09:30–21:30</option></select></label><button class="button button-dark" type="submit">Publicar fecha <span>↗</span></button></form></dialog>
+  <dialog id="workshop-dialog" class="editor-dialog"><form id="workshop-form"><button class="dialog-close" type="button" data-close aria-label="Cerrar">×</button><p class="eyebrow">PROGRAMACIÓN</p><h2>Nuevo taller</h2><label>Nombre<input name="title" maxlength="120" required></label><label>Descripción<textarea name="description" rows="3"></textarea></label><div class="form-row"><label>Fecha y hora<input name="starts_at" type="datetime-local" required></label><label>Duración (minutos)<input name="duration_minutes" type="number" min="15" step="15" value="60" required></label></div><div class="form-row"><label>Plazas<input name="capacity" type="number" min="1" max="200" required></label><label>Edad recomendada<input name="age_range" maxlength="40" placeholder="2–3 años"></label></div><label>Precio orientativo (€)<input name="indicative_price" type="number" min="0" step="0.01" placeholder="Consultar"></label><button class="button button-dark" type="submit">Crear taller <span>↗</span></button></form></dialog>
+  <dialog id="rate-dialog" class="editor-dialog"><form id="rate-form"><button class="dialog-close" type="button" data-close aria-label="Cerrar">×</button><p class="eyebrow">TARIFAS</p><h2>Añadir tarifa</h2><label>Concepto<input name="label" maxlength="100" placeholder="Mañana · lunes a jueves" required></label><div class="form-row"><label>Precio (€)<input name="amount" type="number" min="0" step="0.01" required></label><label>Validez desde<input name="valid_from" type="date"></label></div><label>Nota<textarea name="note" rows="2" placeholder="Condiciones o excepciones"></textarea></label><button class="button button-dark" type="submit">Guardar tarifa <span>↗</span></button></form></dialog>
+  <script src="assets/supabase-config.js?v=1"></script>
+  <script type="module" src="admin.js?v=20261026-1"></script>
+</body>
+</html>
