@@ -9,7 +9,7 @@ Esta primera entrega es una maqueta navegable de la web pública, hecha sin depe
 - Diseño adaptable a móvil y escritorio, basado en el logotipo y las referencias visuales compartidas.
 - Secciones para el espacio, talleres, tarifas y consulta de reserva.
 - Selector de idioma castellano/inglés.
-- Ilustraciones provisionales para representar talleres y el espacio. Se sustituirán por fotografías aprobadas por Caleta.
+- Logotipo principal aportado por Caleta en la portada; ilustraciones provisionales para representar los talleres, que se sustituirán por fotografías aprobadas por Caleta.
 - Tarifas orientativas transcritas de la imagen facilitada; deben confirmarse antes de publicar.
 - El formulario muestra cómo será el flujo, pero no envía ni almacena datos.
 

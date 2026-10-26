@@ -41,3 +41,9 @@ body{font-size:16px}
 .dialog-close{position:absolute;top:15px;right:18px;width:34px;height:34px;background:none;border:1px solid var(--line);border-radius:50%;color:var(--ink);font-size:22px;cursor:pointer}
 :focus-visible{outline:2px solid var(--clay-dark);outline-offset:3px}
 @media(max-width:650px){.hero-text{font-size:15px}.section-heading>p,.rates-heading>p{font-size:13px}.workshop-info h3{font-size:22px}.workshop-info p{font-size:13px}.booking-copy>p{font-size:13px}.booking-form label{font-size:12px}.admin-link{margin-left:0;margin-right:0;text-align:left}}
+.hero-art{height:360px}
+.logo-frame{display:flex;align-items:center;justify-content:center;background:#f5f3ef;border-radius:48% 48% 2px 2px/43% 43% 2px 2px}
+.hero-logo-image{display:block;position:relative;z-index:1;width:min(94%,560px);height:auto;object-fit:contain}
+.logo-frame .art-caption{bottom:22px}
+@media(max-width:900px){.hero-art{height:320px}}
+@media(max-width:650px){.hero-art{height:min(68vw,300px)}}
