@@ -7,3 +7,37 @@
 @media(max-width:650px){:root{--gutter:23px}.site-header{height:72px}.wordmark{font-size:22px}.menu-toggle{display:block;order:3;margin-left:auto;padding:6px 0 6px 15px}.language-toggle{margin-left:auto;border-left:0;padding:7px 15px}.main-nav{display:none;position:absolute;left:0;right:0;top:71px;background:var(--paper);padding:20px 23px 25px;box-shadow:0 12px 15px #51474012;align-items:stretch;flex-direction:column;gap:16px}.main-nav.open{display:flex}.main-nav a{font-size:12px}.nav-cta{text-align:center}.hero{padding-top:40px;padding-bottom:52px;display:flex;flex-direction:column;align-items:stretch;min-height:auto}.hero-copy{padding:0}.hero h1{font-size:61px;margin:18px 0}.hero-text{font-size:14px;max-width:345px}.hero-actions{margin-top:22px;gap:20px}.hero-note{margin-top:23px}.hero-art{height:min(92vw,390px);margin:34px 8px 25px 13px;padding:0}.art-frame{border-radius:48% 48% 2px 2px/38% 38% 2px 2px}.art-sticker{right:-16px;bottom:44px;width:76px;height:76px;font-size:13px}.hero-bottom{bottom:18px}.intro{padding-top:80px;padding-bottom:84px}.intro-content{display:block;margin:22px 0 33px}.intro h2,.section-heading h2,.rates h2,.booking h2{font-size:46px}.intro-aside{margin-top:20px;max-width:100%}.intro-aside p{font-size:12px}.feature-grid{grid-template-columns:1fr;gap:12px}.feature-card{min-height:280px}.feature-illustration{height:120px}.feature-card p{max-width:360px}.workshops{padding-top:80px;padding-bottom:83px}.section-heading{display:block;margin-bottom:30px}.section-heading h2{margin-top:18px}.section-heading>p{margin:17px 0 0;max-width:370px}.workshop-grid{grid-template-columns:1fr;gap:18px}.workshop-image{height:250px}.workshop-info{padding:19px 20px 23px}.workshop-info p{min-height:0}.rates{padding-top:75px;padding-bottom:74px}.rates-heading{display:block;margin-bottom:28px}.rates-heading>p{margin-top:16px}.rate-row{grid-template-columns:1fr;gap:15px;padding:20px 0}.rate-title h3{font-size:16px}.rate-details{padding-left:59px}.rate-footnote{font-size:9px}.booking{grid-template-columns:1fr;gap:34px;padding-top:80px;padding-bottom:80px}.booking-copy h2{margin-top:18px}.booking-copy>p{font-size:12px;margin:19px 0}.booking-form{padding:22px 17px}.field-row{grid-template-columns:1fr;gap:0}.contact-band{min-height:180px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.contact-mark{font-size:17px}.contact-band p{font-size:16px;text-align:right}.contact-band>a{justify-self:start;grid-column:1}.site-footer{grid-template-columns:1fr 1fr;gap:18px;padding-top:27px}.footer-logo{font-size:16px}.footer-contact{grid-column:2;text-align:right}.footer-note{grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:13px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important}}
 .privacy-note{display:flex;gap:12px;align-items:flex-start;padding-top:0;padding-bottom:27px;color:var(--muted);font-size:9px;line-height:1.7}.privacy-note>span{color:var(--clay-dark);font-size:14px}.privacy-note p{margin:0;max-width:720px}
+/* Slightly larger supporting type for easier reading. */
+body{font-size:16px}
+.main-nav{font-size:13px}
+.eyebrow,.section-kicker{font-size:11px}
+.hero-text{font-size:17px}
+.intro-aside p{font-size:14px}
+.feature-card p{font-size:12px}
+.feature-card>a,.workshop-info a{font-size:10px}
+.section-heading>p,.rates-heading>p{font-size:13px}
+.workshop-meta{font-size:9px}
+.workshop-info p{font-size:12px}
+.workshop-info h3{font-size:23px}
+.editorial-note{font-size:11px}
+.rate-details p{font-size:12px}
+.rate-footnote{font-size:11px}
+.booking-copy>p{font-size:14px}
+.booking-steps p{font-size:11px}
+.booking-form label{font-size:11px}
+.booking-form input,.booking-form select,.booking-form textarea{font-size:12px}
+.consent{font-size:10px}
+.form-disclaimer{font-size:10px}
+.footer-contact{font-size:11px}
+.footer-note{font-size:9px}
+.admin-link{display:block;margin:7px 0 0 auto;padding:0;border:0;background:transparent;color:var(--muted);font-size:10px;letter-spacing:.04em;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.admin-link:hover{color:var(--clay-dark)}
+.admin-dialog{position:fixed;inset:0;margin:auto;border:0;padding:0;width:min(520px,calc(100% - 36px));background:var(--white);color:var(--ink);box-shadow:0 24px 90px #251f1c45}
+.admin-dialog::backdrop{background:#2e2722a8;backdrop-filter:blur(4px)}
+.admin-dialog-inner{position:relative;padding:clamp(28px,6vw,48px)}
+.admin-dialog-inner h2{margin:22px 0 16px;font-family:var(--serif);font-size:clamp(30px,6vw,42px);font-weight:500;line-height:1.12;letter-spacing:-.04em}
+.admin-dialog-inner h2 em{color:var(--clay-dark);font-weight:500}
+.admin-dialog-inner p{max-width:390px;margin:0;color:var(--muted);font-size:14px;line-height:1.8}
+.dialog-close{position:absolute;top:15px;right:18px;width:34px;height:34px;background:none;border:1px solid var(--line);border-radius:50%;color:var(--ink);font-size:22px;cursor:pointer}
+:focus-visible{outline:2px solid var(--clay-dark);outline-offset:3px}
+@media(max-width:650px){.hero-text{font-size:15px}.section-heading>p,.rates-heading>p{font-size:13px}.workshop-info h3{font-size:22px}.workshop-info p{font-size:13px}.booking-copy>p{font-size:13px}.booking-form label{font-size:12px}.admin-link{margin-left:0;margin-right:0;text-align:left}}
