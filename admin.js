@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { copyFields, imageFields, themeFields } from "./content-fields.js";
 
 const config = window.CALETA_SUPABASE || {};
 const configured = Boolean(config.url && config.publishableKey);
@@ -11,6 +12,7 @@ const message = document.querySelector("#login-message");
 const status = document.querySelector("#dashboard-status");
 const monthCursor = new Date();
 let currentUser = null;
+let contentDraft = { copy: { es: {}, en: {} }, images: {} };
 
 const fmtDate = (value, options = { day: "numeric", month: "short", year: "numeric" }) =>
   new Intl.DateTimeFormat("es-ES", options).format(new Date(value));
@@ -91,14 +93,20 @@ document.querySelector("#today-button").addEventListener("click", () => { monthC
 function openDialog(id) { document.querySelector(id).showModal(); }
 document.querySelector("#new-block").addEventListener("click", () => openDialog("#block-dialog"));
 document.querySelector("#new-availability").addEventListener("click", () => openDialog("#availability-dialog"));
-document.querySelector("#new-workshop").addEventListener("click", () => openDialog("#workshop-dialog"));
+document.querySelector("#new-workshop").addEventListener("click", () => {
+  const form = document.querySelector("#workshop-form"); form.reset(); delete form.dataset.existingImage;
+  document.querySelector("#workshop-dialog-title").textContent = "Nuevo taller";
+  document.querySelector("#workshop-save-button").innerHTML = "Crear taller <span>↗</span>";
+  document.querySelector("#workshop-image-note").textContent = "Imagen opcional; JPG, PNG, WebP o AVIF, máximo 5 MB.";
+  openDialog("#workshop-dialog");
+});
 document.querySelector("#new-rate").addEventListener("click", () => openDialog("#rate-dialog"));
 document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => button.closest("dialog").close()));
 
 async function loadDashboard() {
   if (!supabase || !currentUser) return;
   setMessage("Cargando agenda…", status);
-  await Promise.all([loadCalendar(), loadRequests(), loadWorkshops(), loadRates()]);
+  await Promise.all([loadCalendar(), loadRequests(), loadWorkshops(), loadRates(), loadContentEditor()]);
   setMessage("", status);
 }
 
@@ -174,9 +182,21 @@ async function decideRequest(id, action) {
 
 async function loadWorkshops() {
   const target = document.querySelector("#workshops-list");
-  const { data, error } = await supabase.from("workshops").select("id,title,description,starts_at,capacity,age_range,indicative_price,status").order("starts_at", { ascending: true }).limit(100);
+  const { data, error } = await supabase.from("workshops").select("id,title,description,starts_at,ends_at,capacity,age_range,indicative_price,image_url,status").order("starts_at", { ascending: true }).limit(100);
   if (error) return target.innerHTML = `<p class="empty-state">No se pudo cargar la programación.</p>`;
-  target.innerHTML = data.length ? data.map((item) => `<article class="record-row"><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(fmtDate(item.starts_at, { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }))} · ${item.capacity} plazas · ${escapeHtml(item.age_range || "Edad por definir")}</p><p>${item.indicative_price == null ? "Precio a consultar" : `${Number(item.indicative_price).toFixed(2)} € orientativos`} · ${escapeHtml(item.status)}</p></div><button class="small-button" data-delete-workshop="${item.id}" type="button">Retirar</button></article>`).join("") : `<p class="empty-state">Todavía no hay talleres publicados.</p>`;
+  target.innerHTML = data.length ? data.map((item) => `<article class="record-row"><div>${item.image_url ? `<img class="record-thumbnail" src="${escapeHtml(item.image_url)}" alt="">` : ""}<h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(fmtDate(item.starts_at, { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }))} · ${item.capacity} plazas · ${escapeHtml(item.age_range || "Edad por definir")}</p><p>${item.indicative_price == null ? "Precio a consultar" : `${Number(item.indicative_price).toFixed(2)} € orientativos`} · ${escapeHtml(item.status)}</p>${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}</div><div class="record-actions"><button class="small-button" data-edit-workshop="${item.id}" type="button">Editar</button><button class="small-button" data-delete-workshop="${item.id}" type="button">Retirar</button></div></article>`).join("") : `<p class="empty-state">Todavía no hay talleres publicados.</p>`;
+  target.querySelectorAll("[data-edit-workshop]").forEach((button) => button.addEventListener("click", () => {
+    const item = data.find((workshop) => workshop.id === button.dataset.editWorkshop); if (!item) return;
+    const form = document.querySelector("#workshop-form");
+    form.elements.id.value = item.id; form.elements.title.value = item.title; form.elements.description.value = item.description || "";
+    const start = new Date(item.starts_at); form.elements.starts_at.value = new Date(start.getTime() - start.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    form.elements.duration_minutes.value = Math.max(15, Math.round((new Date(item.ends_at) - start) / 60000));
+    form.elements.capacity.value = item.capacity; form.elements.age_range.value = item.age_range || ""; form.elements.indicative_price.value = item.indicative_price ?? "";
+    form.elements.image_file.value = ""; form.dataset.existingImage = item.image_url || "";
+    document.querySelector("#workshop-dialog-title").textContent = "Editar taller"; document.querySelector("#workshop-save-button").innerHTML = "Guardar cambios <span>↗</span>";
+    document.querySelector("#workshop-image-note").textContent = item.image_url ? "Hay una imagen guardada. Selecciona otra solo si quieres sustituirla." : "Imagen opcional; JPG, PNG, WebP o AVIF, máximo 5 MB.";
+    openDialog("#workshop-dialog");
+  }));
   target.querySelectorAll("[data-delete-workshop]").forEach((button) => button.addEventListener("click", async () => {
     if (!confirm("¿Retirar este taller de la programación?")) return;
     const { error: updateError } = await supabase.from("workshops").update({ status: "cancelled" }).eq("id", button.dataset.deleteWorkshop);
@@ -211,13 +231,92 @@ document.querySelector("#availability-form").addEventListener("submit", (event) 
   const hours = period === "morning" ? ["09:30", "14:00"] : period === "afternoon" ? ["16:00", "21:30"] : ["09:30", "21:30"];
   return { title: "Espacio disponible", starts_at: new Date(`${day}T${hours[0]}:00`).toISOString(), ends_at: new Date(`${day}T${hours[1]}:00`).toISOString() };
 }, loadCalendar));
-document.querySelector("#workshop-form").addEventListener("submit", (event) => saveDialogForm(event, "workshops", (form) => {
-  const start = new Date(form.get("starts_at")), end = new Date(start.getTime() + Number(form.get("duration_minutes")) * 60000);
-  return { title: form.get("title"), description: form.get("description") || null, starts_at: start.toISOString(), ends_at: end.toISOString(), capacity: Number(form.get("capacity")), age_range: form.get("age_range") || null, indicative_price: form.get("indicative_price") ? Number(form.get("indicative_price")) : null, status: "published" };
-}, async () => { await loadWorkshops(); await loadCalendar(); }));
+document.querySelector("#workshop-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget, values = new FormData(form), imageFile = values.get("image_file");
+  let imageUrl = form.dataset.existingImage || null;
+  if (imageFile?.size) {
+    if (!/^image\/(jpeg|png|webp|avif)$/.test(imageFile.type) || imageFile.size > 5 * 1024 * 1024) return setMessage("La imagen debe ser JPG, PNG, WebP o AVIF y pesar hasta 5 MB.", status);
+    const ext = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif" })[imageFile.type];
+    const path = `workshops/${crypto.randomUUID()}.${ext}`;
+    const { error: uploadError } = await supabase.storage.from("caleta-content").upload(path, imageFile, { contentType: imageFile.type, cacheControl: "3600", upsert: false });
+    if (uploadError) return setMessage("No se pudo subir la imagen del taller. Comprueba la migración de imágenes.", status);
+    imageUrl = supabase.storage.from("caleta-content").getPublicUrl(path).data.publicUrl;
+  }
+  const start = new Date(values.get("starts_at"));
+  const patch = { title: values.get("title"), description: values.get("description") || null, starts_at: start.toISOString(), ends_at: new Date(start.getTime() + Number(values.get("duration_minutes")) * 60000).toISOString(), capacity: Number(values.get("capacity")), age_range: values.get("age_range") || null, indicative_price: values.get("indicative_price") ? Number(values.get("indicative_price")) : null, image_url: imageUrl, status: "published" };
+  const id = values.get("id");
+  const result = id ? await supabase.from("workshops").update(patch).eq("id", id) : await supabase.from("workshops").insert(patch);
+  if (result.error) return setMessage("No se pudo guardar el taller. Revisa que sus datos sean válidos.", status);
+  form.reset(); delete form.dataset.existingImage; form.closest("dialog").close();
+  document.querySelector("#workshop-dialog-title").textContent = "Nuevo taller"; document.querySelector("#workshop-save-button").innerHTML = "Crear taller <span>↗</span>";
+  setMessage(id ? "Taller actualizado." : "Taller creado y publicado.", status); await loadWorkshops(); await loadCalendar();
+});
 document.querySelector("#rate-form").addEventListener("submit", (event) => saveDialogForm(event, "indicative_rates", (form) => ({
   label: form.get("label"), amount: Number(form.get("amount")), valid_from: form.get("valid_from") || null, note: form.get("note") || null
 }), loadRates));
+
+async function loadContentEditor() {
+  const { data, error } = await supabase.from("site_content").select("content").eq("id", "homepage").maybeSingle();
+  if (error) {
+    document.querySelector("#content-fields").innerHTML = `<p class="empty-state">No se puede cargar el editor. Ejecuta la migración <code>202610270001_site_content_manager.sql</code> en Supabase y vuelve a entrar.</p>`;
+    return;
+  }
+  contentDraft = data?.content || { copy: { es: {}, en: {} }, images: {} };
+  contentDraft.copy ||= { es: {}, en: {} }; contentDraft.copy.es ||= {}; contentDraft.copy.en ||= {}; contentDraft.images ||= {};
+  const editors = copyFields.map((field) => {
+    const es = contentDraft.copy.es[field.key] ?? field.es;
+    const en = contentDraft.copy.en[field.key] ?? field.en;
+    const control = (locale, value) => field.type === "textarea"
+      ? `<textarea name="${field.key}-${locale}" data-copy-key="${field.key}" data-locale="${locale}" rows="3" maxlength="600">${escapeHtml(value)}</textarea>`
+      : `<input name="${field.key}-${locale}" data-copy-key="${field.key}" data-locale="${locale}" maxlength="180" value="${escapeHtml(value)}">`;
+    return `<fieldset class="copy-editor"><legend>${escapeHtml(field.label)}</legend><label>Castellano${control("es", es)}</label><label>English${control("en", en)}</label></fieldset>`;
+  }).join("");
+  document.querySelector("#content-fields").innerHTML = `<div class="copy-editor-grid">${editors}</div>`;
+  document.querySelector("#image-fields").innerHTML = imageFields.map((field) => {
+    const url = contentDraft.images[field.key] || "";
+    return `<div class="image-editor-card"><strong>${escapeHtml(field.label)}</strong><div class="image-preview" data-image-preview="${field.key}">${url ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(field.alt)}">` : `<span>Imagen actual del diseño</span>`}</div><label class="upload-control">Seleccionar imagen<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-upload-image="${field.key}"></label><button class="text-button clear-image" type="button" data-clear-image="${field.key}">Usar imagen original</button><p class="upload-status" data-upload-status="${field.key}" role="status"></p></div>`;
+  }).join("");
+  document.querySelector("#theme-fields").innerHTML = themeFields.map((field) => `<label class="theme-color-field">${escapeHtml(field.label)}<input type="color" name="theme-${field.key}" data-theme-key="${field.key}" value="${/^#[\da-f]{6}$/i.test(contentDraft.theme?.[field.key] || "") ? contentDraft.theme[field.key] : field.fallback}"></label>`).join("");
+  document.querySelectorAll("[data-upload-image]").forEach((input) => input.addEventListener("change", () => uploadContentImage(input)));
+  document.querySelectorAll("[data-clear-image]").forEach((button) => button.addEventListener("click", () => {
+    delete contentDraft.images[button.dataset.clearImage];
+    document.querySelector(`[data-image-preview="${button.dataset.clearImage}"]`).innerHTML = "<span>Se usará la imagen original del diseño</span>";
+    document.querySelector(`[data-upload-status="${button.dataset.clearImage}"]`).textContent = "Guarda los cambios para retirar la imagen personalizada.";
+  }));
+}
+
+async function uploadContentImage(input) {
+  const file = input.files?.[0]; if (!file) return;
+  const statusNode = document.querySelector(`[data-upload-status="${input.dataset.uploadImage}"]`);
+  if (!/image\/(jpeg|png|webp|avif)/.test(file.type) || file.size > 5 * 1024 * 1024) {
+    statusNode.textContent = "Elige JPG, PNG, WebP o AVIF de hasta 5 MB."; input.value = ""; return;
+  }
+  statusNode.textContent = "Subiendo imagen…"; input.disabled = true;
+  const extension = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif" })[file.type];
+  const path = `public/${crypto.randomUUID()}.${extension}`;
+  const { error } = await supabase.storage.from("caleta-content").upload(path, file, { contentType: file.type, cacheControl: "3600", upsert: false });
+  input.disabled = false;
+  if (error) { statusNode.textContent = "No se pudo subir. Comprueba que la migración esté aplicada."; return; }
+  const { data: publicData } = supabase.storage.from("caleta-content").getPublicUrl(path);
+  contentDraft.images[input.dataset.uploadImage] = publicData.publicUrl;
+  document.querySelector(`[data-image-preview="${input.dataset.uploadImage}"]`).innerHTML = `<img src="${escapeHtml(publicData.publicUrl)}" alt="Vista previa">`;
+  statusNode.textContent = "Imagen cargada. Guarda los cambios para publicarla.";
+}
+
+document.querySelector("#content-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!currentUser) return;
+  const copy = { es: {}, en: {} };
+  document.querySelectorAll("[data-copy-key]").forEach((field) => { copy[field.dataset.locale][field.dataset.copyKey] = field.value.trim(); });
+  const theme = {};
+  document.querySelectorAll("[data-theme-key]").forEach((field) => { theme[field.dataset.themeKey] = field.value; });
+  for (const locale of ["es", "en"]) {
+    if (copy[locale].instagramUrl && !/^https:\/\/www\.instagram\.com\/[\w.]+\/?$/i.test(copy[locale].instagramUrl)) return setMessage("El enlace de Instagram debe ser una dirección válida de instagram.com.", status);
+  }
+  const { error } = await supabase.from("site_content").upsert({ id: "homepage", content: { copy, images: contentDraft.images, theme } }, { onConflict: "id" });
+  setMessage(error ? "No se pudieron guardar los cambios. Comprueba los permisos y la migración." : "Contenido guardado. La web pública lo mostrará al actualizarse.", status);
+});
 
 document.querySelectorAll("dialog").forEach((dialog) => dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); }));
 if (!configured) setMessage("El panel está listo, pero aún no se ha conectado la base de datos segura. No se guardan datos aquí.");
