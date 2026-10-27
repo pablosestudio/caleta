@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
-import { copyFields, imageFields, themeFields, editorSections, sectionForCopy } from "./content-fields.js?v=20261028-3";
+import { copyFields, imageFields, themeFields, editorSections, sectionForCopy } from "./content-fields.js?v=20261028-4";
 
 const config = window.CALETA_SUPABASE || {};
 const configured = Boolean(config.url && config.publishableKey);
@@ -288,14 +288,19 @@ async function loadContentEditor() {
   }));
   document.querySelector("#image-fields").innerHTML = imageFields.map((field) => {
     const url = contentDraft.images[field.key] || "";
-    return `<div class="image-editor-card"><strong>${escapeHtml(field.label)}</strong><div class="image-preview" data-image-preview="${field.key}">${url ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(field.alt)}">` : `<span>Imagen actual del diseño</span>`}</div><label class="upload-control">Seleccionar imagen<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-upload-image="${field.key}"></label><button class="text-button clear-image" type="button" data-clear-image="${field.key}">Usar imagen original</button><p class="upload-status" data-upload-status="${field.key}" role="status"></p></div>`;
+    const previewUrl = url || field.defaultUrl || "";
+    return `<div class="image-editor-card"><strong>${escapeHtml(field.label)}</strong><div class="image-preview" data-image-preview="${field.key}">${previewUrl ? `<img src="${escapeHtml(previewUrl)}" alt="${escapeHtml(field.alt)}">` : `<span>Imagen actual del diseño</span>`}</div><label class="upload-control">Seleccionar imagen<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-upload-image="${field.key}"></label><button class="text-button clear-image" type="button" data-clear-image="${field.key}">Usar imagen original</button><p class="upload-status" data-upload-status="${field.key}" role="status"></p></div>`;
   }).join("");
   document.querySelector("#theme-fields").innerHTML = themeFields.map((field) => `<label class="theme-color-field">${escapeHtml(field.label)}<input type="color" name="theme-${field.key}" data-theme-key="${field.key}" value="${/^#[\da-f]{6}$/i.test(contentDraft.theme?.[field.key] || "") ? contentDraft.theme[field.key] : field.fallback}"></label>`).join("");
   document.querySelectorAll("[data-upload-image]").forEach((input) => input.addEventListener("change", () => uploadContentImage(input)));
   document.querySelectorAll("[data-clear-image]").forEach((button) => button.addEventListener("click", () => {
-    delete contentDraft.images[button.dataset.clearImage];
-    document.querySelector(`[data-image-preview="${button.dataset.clearImage}"]`).innerHTML = "<span>Se usará la imagen original del diseño</span>";
-    document.querySelector(`[data-upload-status="${button.dataset.clearImage}"]`).textContent = "Guarda los cambios para retirar la imagen personalizada.";
+    const key = button.dataset.clearImage;
+    const field = imageFields.find((item) => item.key === key);
+    delete contentDraft.images[key];
+    document.querySelector(`[data-image-preview="${key}"]`).innerHTML = field?.defaultUrl
+      ? `<img src="${escapeHtml(field.defaultUrl)}" alt="${escapeHtml(field.alt)}">`
+      : "<span>Se usará la imagen original del diseño</span>";
+    document.querySelector(`[data-upload-status="${key}"]`).textContent = "Guarda los cambios para volver a la imagen original.";
     sendPreview();
   }));
   document.querySelector("#content-form").oninput = sendPreview;

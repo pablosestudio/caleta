@@ -53,7 +53,7 @@ function applyCustomCopy() {
 function applyImages() {
   const images = content.images || {};
   for (const node of document.querySelectorAll("[data-site-image]")) {
-    const url = safeImageUrl(images[node.dataset.siteImage]);
+    const url = safeImageUrl(images[node.dataset.siteImage]) || safeImageUrl(node.dataset.defaultImage);
     if (node instanceof HTMLImageElement) {
       node.src = url || "assets/caleta-logo-main.png";
       continue;

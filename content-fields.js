@@ -104,9 +104,9 @@ export const copyFields = [
 
 export const imageFields = [
   { key: "logo", label: "Logotipo de Caleta", alt: "Logotipo principal" },
-  { key: "feature1", label: "Imagen · Celebrar", alt: "Celebraciones en Espacio Caleta" },
-  { key: "feature2", label: "Imagen · Crear", alt: "Talleres creativos en Espacio Caleta" },
-  { key: "feature3", label: "Imagen · Jugar", alt: "Juego en Espacio Caleta" },
+  { key: "feature1", label: "Imagen · Celebrar", alt: "Celebraciones en Espacio Caleta", defaultUrl: "assets/feature-celebrate.webp" },
+  { key: "feature2", label: "Imagen · Crear", alt: "Talleres creativos en Espacio Caleta", defaultUrl: "assets/feature-create.webp" },
+  { key: "feature3", label: "Imagen · Jugar", alt: "Juego en Espacio Caleta", defaultUrl: "assets/feature-play.webp" },
   { key: "featured1", label: "Imagen taller destacado 1", alt: "Imagen del primer taller destacado" },
   { key: "featured2", label: "Imagen taller destacado 2", alt: "Imagen del segundo taller destacado" },
   { key: "featured3", label: "Imagen taller destacado 3", alt: "Imagen del tercer taller destacado" }
