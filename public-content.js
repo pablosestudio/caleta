@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { resolveCaletaImage } from "./content-fields.js?v=20261028-5";
 
 async function initPublicContent() {
 const config = window.CALETA_SUPABASE || {};
@@ -53,7 +54,8 @@ function applyCustomCopy() {
 function applyImages() {
   const images = content.images || {};
   for (const node of document.querySelectorAll("[data-site-image]")) {
-    const url = safeImageUrl(images[node.dataset.siteImage]) || safeImageUrl(node.dataset.defaultImage);
+    const key = node.dataset.siteImage;
+    const url = safeImageUrl(resolveCaletaImage(key, images[key])) || safeImageUrl(node.dataset.defaultImage);
     if (node instanceof HTMLImageElement) {
       node.src = url || "assets/caleta-logo-main.png";
       continue;

@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
-import { copyFields, imageFields, themeFields, editorSections, sectionForCopy } from "./content-fields.js?v=20261028-4";
+import { copyFields, imageFields, themeFields, editorSections, sectionForCopy, resolveCaletaImage } from "./content-fields.js?v=20261028-5";
 
 const config = window.CALETA_SUPABASE || {};
 const configured = Boolean(config.url && config.publishableKey);
@@ -288,7 +288,7 @@ async function loadContentEditor() {
   }));
   document.querySelector("#image-fields").innerHTML = imageFields.map((field) => {
     const url = contentDraft.images[field.key] || "";
-    const previewUrl = url || field.defaultUrl || "";
+    const previewUrl = resolveCaletaImage(field.key, url || field.defaultUrl) || "";
     return `<div class="image-editor-card"><strong>${escapeHtml(field.label)}</strong><div class="image-preview" data-image-preview="${field.key}">${previewUrl ? `<img src="${escapeHtml(previewUrl)}" alt="${escapeHtml(field.alt)}">` : `<span>Imagen actual del diseño</span>`}</div><label class="upload-control">Seleccionar imagen<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-upload-image="${field.key}"></label><button class="text-button clear-image" type="button" data-clear-image="${field.key}">Usar imagen original</button><p class="upload-status" data-upload-status="${field.key}" role="status"></p></div>`;
   }).join("");
   document.querySelector("#theme-fields").innerHTML = themeFields.map((field) => `<label class="theme-color-field">${escapeHtml(field.label)}<input type="color" name="theme-${field.key}" data-theme-key="${field.key}" value="${/^#[\da-f]{6}$/i.test(contentDraft.theme?.[field.key] || "") ? contentDraft.theme[field.key] : field.fallback}"></label>`).join("");
