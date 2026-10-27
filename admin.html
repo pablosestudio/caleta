@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="admin.css?v=20261027-1">
+  <link rel="stylesheet" href="admin.css?v=20261028-1">
 </head>
 <body>
   <main class="admin-shell">
@@ -46,6 +46,8 @@
         <button class="tab" data-panel="workshops-panel" type="button">Talleres</button>
         <button class="tab" data-panel="rates-panel" type="button">Tarifas</button>
         <button class="tab" data-panel="content-panel" type="button">Contenido e imágenes</button>
+        <button class="tab" data-panel="team-panel" type="button">Equipo</button>
+        <button class="tab" data-panel="newsletter-panel" type="button">Noticias por correo</button>
       </nav>
       <section class="panel" id="calendar-panel">
         <div class="panel-title"><div><p class="eyebrow">DISPONIBILIDAD</p><h2>Calendario</h2></div><div class="calendar-actions"><button class="button button-outline" id="new-block" type="button">Bloquear fecha</button><button class="button button-dark" id="new-availability" type="button">Publicar disponibilidad <span>+</span></button></div></div>
@@ -60,7 +62,21 @@
       <section class="panel is-hidden" id="content-panel">
         <div class="panel-title"><div><p class="eyebrow">EDICIÓN DE LA WEB PÚBLICA</p><h2>Contenido e imágenes</h2></div></div>
         <p class="content-intro">Edita los textos en castellano e inglés, actualiza las tarifas que aparecen en la web y sustituye el logotipo o las imágenes de los talleres. Los cambios se publican al guardar.</p>
-        <form id="content-form" class="content-editor"><div id="content-fields"></div><h3>Identidad visual</h3><p class="panel-note">Ajusta los tonos generales de la web. El diseño tipográfico se mantiene para conservar la identidad de Caleta.</p><div id="theme-fields" class="theme-editor-grid"></div><h3>Imágenes de la web</h3><p class="panel-note">Formatos JPG, PNG, WebP o AVIF · máximo 5 MB por imagen.</p><div id="image-fields" class="image-editor-grid"></div><button class="button button-dark" type="submit">Guardar cambios de la web <span>↗</span></button></form>
+        <div class="content-manager-layout"><div class="content-editor-main"><nav class="content-section-nav" id="content-section-nav" aria-label="Secciones del contenido"></nav><form id="content-form" class="content-editor"><div id="content-fields"></div><h3>Identidad visual</h3><p class="panel-note">Ajusta los tonos generales de la web. El diseño tipográfico se mantiene para conservar la identidad de Caleta.</p><div id="theme-fields" class="theme-editor-grid"></div><h3>Imágenes de la web</h3><p class="panel-note">Formatos JPG, PNG, WebP o AVIF · máximo 5 MB por imagen.</p><div id="image-fields" class="image-editor-grid"></div><button class="button button-dark" type="submit">Guardar cambios de la web <span>↗</span></button></form></div><aside class="content-preview"><div class="content-preview-head"><div><strong>Vista previa</strong><span>Se actualiza mientras editas</span></div><button class="small-button" id="preview-language" type="button">Ver en inglés</button></div><iframe id="public-preview" title="Vista previa de la web de Caleta" src="./?admin-preview=1" loading="lazy"></iframe><a href="./" target="_blank" rel="noopener noreferrer">Abrir la web en otra pestaña ↗</a></aside></div>
+      </section>
+      <section class="panel is-hidden" id="team-panel">
+        <div class="panel-title"><div><p class="eyebrow">ACCESOS PRIVADOS</p><h2>Equipo administrador</h2></div></div>
+        <p class="content-intro">Invita a las personas que necesiten mantener Caleta. Cada una recibirá un enlace y creará su propia contraseña; nunca se envían ni se guardan contraseñas desde este panel.</p>
+        <form id="invite-admin-form" class="inline-admin-form"><label>Correo de la persona<input name="email" type="email" maxlength="254" required placeholder="nombre@correo.com"></label><button class="button button-dark" type="submit">Enviar invitación <span>↗</span></button></form>
+        <div id="admin-users-list" class="record-list"></div>
+      </section>
+      <section class="panel is-hidden" id="newsletter-panel">
+        <div class="panel-title"><div><p class="eyebrow">COMUNICACIÓN CON FAMILIAS</p><h2>Noticias por correo</h2></div></div>
+        <div class="newsletter-stats"><article><span id="newsletter-active-count">—</span><p>Suscripciones confirmadas</p></article><article><span id="newsletter-pending-count">—</span><p>Esperando confirmación</p></article></div>
+        <p class="content-intro">Solo se enviará a personas que se apunten voluntariamente y confirmen su correo. Cada noticia llevará un enlace para darse de baja. La suscripción pública y los envíos se activarán al conectar Resend; las solicitudes de reserva no se añadirán a esta lista.</p>
+        <form id="newsletter-campaign-form" class="newsletter-composer"><label>Asunto<input name="subject" maxlength="160" required></label><label>Texto de la noticia<textarea name="body" rows="8" maxlength="6000" required placeholder="Escribe la novedad, taller o evento…"></textarea></label><button class="button button-dark" type="submit">Enviar a la lista confirmada <span>↗</span></button><p class="panel-note">El envío se activará al conectar el proveedor de correo. No se usan las direcciones de solicitudes de reserva.</p></form>
+        <h3 class="subsection-title">Últimos envíos</h3><div id="newsletter-campaigns-list" class="record-list"></div>
+        <h3 class="subsection-title">Suscripciones</h3><div id="newsletter-subscribers-list" class="record-list"></div>
       </section>
       <p class="dashboard-status" id="dashboard-status" role="status" aria-live="polite"></p>
     </section>
@@ -71,6 +87,6 @@
   <dialog id="workshop-dialog" class="editor-dialog"><form id="workshop-form"><button class="dialog-close" type="button" data-close aria-label="Cerrar">×</button><p class="eyebrow">PROGRAMACIÓN</p><h2 id="workshop-dialog-title">Nuevo taller</h2><input name="id" type="hidden"><label>Nombre<input name="title" maxlength="120" required></label><label>Descripción<textarea name="description" rows="3"></textarea></label><div class="form-row"><label>Fecha y hora<input name="starts_at" type="datetime-local" required></label><label>Duración (minutos)<input name="duration_minutes" type="number" min="15" step="15" value="60" required></label></div><div class="form-row"><label>Plazas<input name="capacity" type="number" min="1" max="200" required></label><label>Edad recomendada<input name="age_range" maxlength="40" placeholder="2–3 años"></label></div><label>Precio orientativo (€)<input name="indicative_price" type="number" min="0" step="0.01" placeholder="Consultar"></label><label>Imagen del taller<input name="image_file" type="file" accept="image/jpeg,image/png,image/webp,image/avif"></label><p class="panel-note" id="workshop-image-note">Imagen opcional; JPG, PNG, WebP o AVIF, máximo 5 MB.</p><button class="button button-dark" id="workshop-save-button" type="submit">Crear taller <span>↗</span></button></form></dialog>
   <dialog id="rate-dialog" class="editor-dialog"><form id="rate-form"><button class="dialog-close" type="button" data-close aria-label="Cerrar">×</button><p class="eyebrow">TARIFAS</p><h2>Añadir tarifa</h2><label>Concepto<input name="label" maxlength="100" placeholder="Mañana · lunes a jueves" required></label><div class="form-row"><label>Precio (€)<input name="amount" type="number" min="0" step="0.01" required></label><label>Validez desde<input name="valid_from" type="date"></label></div><label>Nota<textarea name="note" rows="2" placeholder="Condiciones o excepciones"></textarea></label><button class="button button-dark" type="submit">Guardar tarifa <span>↗</span></button></form></dialog>
   <script>window.CALETA_SUPABASE={url:"https://ifsrblhfxcxinhznvcwu.supabase.co",publishableKey:"sb_publishable_dvBtDJ5dkb0xPyV2M7XDuQ_7uVyeikE"};</script>
-  <script type="module" src="admin.js?v=20261027-1"></script>
+  <script type="module" src="admin.js?v=20261028-1"></script>
 </body>
 </html>

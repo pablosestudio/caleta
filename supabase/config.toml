@@ -1,0 +1,2 @@
+[functions.caleta-management]
+verify_jwt = true

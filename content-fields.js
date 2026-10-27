@@ -118,3 +118,19 @@ export const themeFields = [
 ];
 
 export const defaultContent = Object.fromEntries(copyFields.map(({ key, es, en }) => [key, { es, en }]));
+
+const homeKeys = new Set(["skip", "navSpace", "navWorkshops", "navRates", "navBook", "eyebrow", "heroTitle", "heroText", "heroCta", "heroLink", "heroNote", "artCaption", "heroBottom"]);
+const spaceKeys = new Set(["introKicker", "introTitle", "introText", "featureCelebrate", "featureCelebrateText", "featureCreate", "featureCreateText", "featurePlay", "featurePlayText", "featureLink"]);
+const workshopKeys = new Set(["workshopKicker", "workshopText", "workshopTitle", "workshopNote", "sensoryTitle", "sensoryText", "colorTitle", "colorText", "freeTitle", "freeText", "ageLabel", "ageLabelTwo", "ageLabelThree", "durationOne", "flexTime", "workshopRequest"]);
+const rateKeys = new Set(["ratesText", "ratesTitle", "ratesKicker", "morning", "afternoons", "fullDay", "monThu", "friday", "weekendFestive", "friSun", "holidayEve", "weekend", "ratesNote", "ratesCta", "morningHours", "afternoonHours", "fullDayHours", "rateMorningWeek", "rateMorningFriday", "rateMorningWeekend", "rateAfternoonWeek", "rateAfternoonWeekend", "rateAfternoonHoliday", "rateFullWeek", "rateFullFriday", "rateFullWeekend"]);
+const bookingKeys = new Set(["bookingText", "bookingTitle", "bookingKicker", "stepOne", "stepTwo", "stepThree", "formEyebrow", "typeLabel", "typePlaceholder", "spaceOption", "workshopOption", "dateLabel", "timeLabel", "timePlaceholder", "morningOption", "afternoonOption", "fullOption", "otherOption", "placesLabel", "nameLabel", "phoneLabel", "emailLabel", "notesLabel", "optional", "consentText", "privacyLink", "submitText"]);
+export const editorSections = [
+  { id: "seo", label: "SEO", keys: new Set(["seoTitle", "seoDescription"]) },
+  { id: "home", label: "Inicio y navegación", keys: homeKeys },
+  { id: "space", label: "El espacio", keys: spaceKeys },
+  { id: "workshops", label: "Talleres", keys: workshopKeys },
+  { id: "rates", label: "Tarifas", keys: rateKeys },
+  { id: "booking", label: "Reservas", keys: bookingKeys },
+  { id: "contact", label: "Contacto y pie", keys: new Set(["contactInvite", "address", "phone", "instagramUrl", "privacyNote", "adminAccess", "footerNote"]) }
+];
+export const sectionForCopy = Object.fromEntries(editorSections.flatMap((section) => [...section.keys].map((key) => [key, section.id])));

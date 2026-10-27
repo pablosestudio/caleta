@@ -6,9 +6,9 @@ if (!config.url || !config.publishableKey) return;
 
 const client = createClient(config.url, config.publishableKey);
 const { data, error } = await client.from("site_content").select("content").eq("id", "homepage").maybeSingle();
-if (error || !data?.content) return;
+if (error) console.warn("Caleta content table is not ready yet.");
 
-const content = data.content;
+let content = data?.content || {};
 window.CALETA_SITE_COPY = { es: content.copy?.es || {}, en: content.copy?.en || {} };
 window.CALETA_APPLY_LANGUAGE?.();
 
@@ -54,19 +54,38 @@ function applyImages() {
   const images = content.images || {};
   for (const node of document.querySelectorAll("[data-site-image]")) {
     const url = safeImageUrl(images[node.dataset.siteImage]);
-    if (!url) continue;
-    if (node instanceof HTMLImageElement) node.src = url;
-    else {
-      node.classList.add("has-custom-image");
-      const image = document.createElement("img");
-      image.className = "workshop-photo";
+    if (node instanceof HTMLImageElement) {
+      node.src = url || "assets/caleta-logo-main.png";
+    } else if (url) {
+      let image = node.querySelector(":scope > .workshop-photo");
+      if (!image) {
+        node.classList.add("has-custom-image");
+        image = document.createElement("img");
+        image.className = "workshop-photo";
+        image.loading = "lazy";
+        node.prepend(image);
+      }
       image.src = url;
       image.alt = node.getAttribute("aria-label") || "Imagen de un taller de Caleta";
-      image.loading = "lazy";
-      node.prepend(image);
       node.querySelectorAll(".sensory-art,.paint-art,.play-artwork").forEach((art) => art.hidden = true);
+    } else {
+      node.querySelector(":scope > .workshop-photo")?.remove();
+      node.classList.remove("has-custom-image");
+      node.querySelectorAll(".sensory-art,.paint-art,.play-artwork").forEach((art) => art.hidden = false);
     }
   }
+}
+async function handleNewsletterUnsubscribe() {
+  const params = new URLSearchParams(location.search);
+  if (params.get("caleta_newsletter") !== "unsubscribe") return;
+  const token = params.get("token");
+  const { data, error } = token ? await client.rpc("unsubscribe_newsletter", { p_token: token }) : { data: false, error: true };
+  const toast = document.querySelector("#toast");
+  if (toast) {
+    toast.textContent = error ? "No se pudo actualizar la suscripción. Contacta con Caleta." : data ? "Tu correo se ha dado de baja de las noticias de Caleta." : "Este correo ya estaba dado de baja o el enlace no es válido.";
+    toast.classList.add("visible");
+  }
+  history.replaceState(null, "", location.pathname);
 }
 const escapeHtml = (value = "") => String(value).replace(/[&<>"']/g, (char) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -99,9 +118,25 @@ async function renderWorkshopSessions() {
 applyCustomCopy();
 applyImages();
 renderWorkshopSessions();
+handleNewsletterUnsubscribe();
 document.querySelector(".language-toggle")?.addEventListener("click", () => {
   window.setTimeout(() => { applyCustomCopy(); renderWorkshopSessions(); }, 0);
 });
+if (new URLSearchParams(location.search).has("admin-preview")) {
+  window.addEventListener("message", (event) => {
+    if (event.origin !== location.origin || event.source !== parent || event.data?.type !== "caleta-admin-preview") return;
+    content = { copy: event.data.copy || {}, images: event.data.images || {}, theme: event.data.theme || {} };
+    document.documentElement.lang = event.data.locale === "en" ? "en" : "es";
+    window.CALETA_SITE_COPY = { es: content.copy.es || {}, en: content.copy.en || {} };
+    window.CALETA_APPLY_LANGUAGE?.();
+    for (const [key, variable] of Object.entries(themeVariables)) {
+      const value = content.theme[key];
+      if (typeof value === "string" && /^#[\da-f]{6}$/i.test(value)) document.documentElement.style.setProperty(variable, value);
+    }
+    applyCustomCopy(); applyImages(); renderWorkshopSessions();
+  });
+  parent.postMessage({ type: "caleta-preview-ready" }, location.origin);
+}
 }
 
 initPublicContent();

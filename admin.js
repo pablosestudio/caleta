@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
-import { copyFields, imageFields, themeFields } from "./content-fields.js";
+import { copyFields, imageFields, themeFields, editorSections, sectionForCopy } from "./content-fields.js";
 
 const config = window.CALETA_SUPABASE || {};
 const configured = Boolean(config.url && config.publishableKey);
@@ -13,6 +13,9 @@ const status = document.querySelector("#dashboard-status");
 const monthCursor = new Date();
 let currentUser = null;
 let contentDraft = { copy: { es: {}, en: {} }, images: {} };
+window.addEventListener("message", (event) => {
+  if (event.origin === location.origin && event.source === document.querySelector("#public-preview")?.contentWindow && event.data?.type === "caleta-preview-ready") sendPreview();
+});
 
 const fmtDate = (value, options = { day: "numeric", month: "short", year: "numeric" }) =>
   new Intl.DateTimeFormat("es-ES", options).format(new Date(value));
@@ -63,6 +66,7 @@ document.querySelector("#recovery-form").addEventListener("submit", async (event
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return setMessage("No se pudo cambiar la contraseña. Comprueba que tenga al menos 12 caracteres.", document.querySelector("#recovery-message"));
   await supabase.auth.signOut();
+  history.replaceState(null, "", location.pathname);
   document.querySelector("#recovery-view").classList.add("is-hidden"); showLogin();
   setMessage("Contraseña actualizada. Ya puedes iniciar sesión.");
 });
@@ -72,7 +76,8 @@ document.querySelector("#logout").addEventListener("click", async () => {
 });
 if (supabase) {
   supabase.auth.onAuthStateChange((event, session) => {
-    if (event === "PASSWORD_RECOVERY" && session?.user) return showRecovery();
+    const inviteFlow = new URLSearchParams(location.search).get("set-password") === "1" || new URLSearchParams(location.hash.slice(1)).get("type") === "invite";
+    if ((event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && inviteFlow)) && session?.user) return showRecovery();
     if (!session?.user) return showLogin();
     window.setTimeout(async () => {
       const { data, error } = await supabase.rpc("is_caleta_admin");
@@ -106,7 +111,7 @@ document.querySelectorAll("[data-close]").forEach((button) => button.addEventLis
 async function loadDashboard() {
   if (!supabase || !currentUser) return;
   setMessage("Cargando agenda…", status);
-  await Promise.all([loadCalendar(), loadRequests(), loadWorkshops(), loadRates(), loadContentEditor()]);
+  await Promise.all([loadCalendar(), loadRequests(), loadWorkshops(), loadRates(), loadContentEditor(), loadAdminTeam(), loadNewsletterOverview()]);
   setMessage("", status);
 }
 
@@ -264,15 +269,23 @@ async function loadContentEditor() {
   }
   contentDraft = data?.content || { copy: { es: {}, en: {} }, images: {} };
   contentDraft.copy ||= { es: {}, en: {} }; contentDraft.copy.es ||= {}; contentDraft.copy.en ||= {}; contentDraft.images ||= {};
-  const editors = copyFields.map((field) => {
-    const es = contentDraft.copy.es[field.key] ?? field.es;
-    const en = contentDraft.copy.en[field.key] ?? field.en;
-    const control = (locale, value) => field.type === "textarea"
-      ? `<textarea name="${field.key}-${locale}" data-copy-key="${field.key}" data-locale="${locale}" rows="3" maxlength="600">${escapeHtml(value)}</textarea>`
-      : `<input name="${field.key}-${locale}" data-copy-key="${field.key}" data-locale="${locale}" maxlength="180" value="${escapeHtml(value)}">`;
-    return `<fieldset class="copy-editor"><legend>${escapeHtml(field.label)}</legend><label>Castellano${control("es", es)}</label><label>English${control("en", en)}</label></fieldset>`;
+  const groups = editorSections.map((section, index) => {
+    const editors = copyFields.filter((field) => sectionForCopy[field.key] === section.id).map((field) => {
+      const es = contentDraft.copy.es[field.key] ?? field.es;
+      const en = contentDraft.copy.en[field.key] ?? field.en;
+      const control = (locale, value) => field.type === "textarea"
+        ? `<textarea name="${field.key}-${locale}" data-copy-key="${field.key}" data-locale="${locale}" rows="3" maxlength="600">${escapeHtml(value)}</textarea>`
+        : `<input name="${field.key}-${locale}" data-copy-key="${field.key}" data-locale="${locale}" maxlength="600" value="${escapeHtml(value)}">`;
+      return `<fieldset class="copy-editor"><legend>${escapeHtml(field.label)}</legend><label>Castellano${control("es", es)}</label><label>English${control("en", en)}</label></fieldset>`;
+    }).join("");
+    return `<section class="content-group${index === 0 ? " is-active" : ""}" data-content-group="${section.id}"><header class="content-group-heading"><h3>${escapeHtml(section.label)}</h3><p>Edita las versiones en ambos idiomas. La vista previa muestra el idioma seleccionado.</p></header><div class="copy-editor-grid">${editors}</div></section>`;
   }).join("");
-  document.querySelector("#content-fields").innerHTML = `<div class="copy-editor-grid">${editors}</div>`;
+  document.querySelector("#content-fields").innerHTML = groups;
+  document.querySelector("#content-section-nav").innerHTML = editorSections.map((section, index) => `<button type="button" data-content-section="${section.id}" class="${index === 0 ? "is-active" : ""}">${escapeHtml(section.label)}</button>`).join("");
+  document.querySelectorAll("[data-content-section]").forEach((button) => button.addEventListener("click", () => {
+    document.querySelectorAll("[data-content-section]").forEach((item) => item.classList.toggle("is-active", item === button));
+    document.querySelectorAll("[data-content-group]").forEach((item) => item.classList.toggle("is-active", item.dataset.contentGroup === button.dataset.contentSection));
+  }));
   document.querySelector("#image-fields").innerHTML = imageFields.map((field) => {
     const url = contentDraft.images[field.key] || "";
     return `<div class="image-editor-card"><strong>${escapeHtml(field.label)}</strong><div class="image-preview" data-image-preview="${field.key}">${url ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(field.alt)}">` : `<span>Imagen actual del diseño</span>`}</div><label class="upload-control">Seleccionar imagen<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-upload-image="${field.key}"></label><button class="text-button clear-image" type="button" data-clear-image="${field.key}">Usar imagen original</button><p class="upload-status" data-upload-status="${field.key}" role="status"></p></div>`;
@@ -283,7 +296,30 @@ async function loadContentEditor() {
     delete contentDraft.images[button.dataset.clearImage];
     document.querySelector(`[data-image-preview="${button.dataset.clearImage}"]`).innerHTML = "<span>Se usará la imagen original del diseño</span>";
     document.querySelector(`[data-upload-status="${button.dataset.clearImage}"]`).textContent = "Guarda los cambios para retirar la imagen personalizada.";
+    sendPreview();
   }));
+  document.querySelector("#content-form").oninput = sendPreview;
+  document.querySelectorAll("[data-theme-key]").forEach((field) => { field.oninput = sendPreview; });
+  document.querySelector("#public-preview").onload = sendPreview;
+  document.querySelector("#preview-language").onclick = togglePreviewLanguage;
+  sendPreview();
+}
+
+function togglePreviewLanguage() {
+  const button = document.querySelector("#preview-language");
+  button.dataset.locale = button.dataset.locale === "en" ? "es" : "en";
+  button.textContent = button.dataset.locale === "en" ? "Ver en español" : "Ver en inglés";
+  sendPreview();
+}
+
+function sendPreview() {
+  const frame = document.querySelector("#public-preview");
+  if (!frame?.contentWindow) return;
+  const copy = { es: {}, en: {} };
+  document.querySelectorAll("[data-copy-key]").forEach((field) => { copy[field.dataset.locale][field.dataset.copyKey] = field.value; });
+  const theme = {};
+  document.querySelectorAll("[data-theme-key]").forEach((field) => { theme[field.dataset.themeKey] = field.value; });
+  frame.contentWindow.postMessage({ type: "caleta-admin-preview", locale: document.querySelector("#preview-language").dataset.locale || "es", copy, images: contentDraft.images, theme }, location.origin);
 }
 
 async function uploadContentImage(input) {
@@ -302,6 +338,7 @@ async function uploadContentImage(input) {
   contentDraft.images[input.dataset.uploadImage] = publicData.publicUrl;
   document.querySelector(`[data-image-preview="${input.dataset.uploadImage}"]`).innerHTML = `<img src="${escapeHtml(publicData.publicUrl)}" alt="Vista previa">`;
   statusNode.textContent = "Imagen cargada. Guarda los cambios para publicarla.";
+  sendPreview();
 }
 
 document.querySelector("#content-form").addEventListener("submit", async (event) => {
@@ -316,6 +353,60 @@ document.querySelector("#content-form").addEventListener("submit", async (event)
   }
   const { error } = await supabase.from("site_content").upsert({ id: "homepage", content: { copy, images: contentDraft.images, theme } }, { onConflict: "id" });
   setMessage(error ? "No se pudieron guardar los cambios. Comprueba los permisos y la migración." : "Contenido guardado. La web pública lo mostrará al actualizarse.", status);
+});
+
+async function managementRequest(action, payload = {}) {
+  const { data, error } = await supabase.functions.invoke("caleta-management", { body: { action, ...payload } });
+  if (error) throw new Error(data?.error || "No se pudo conectar con la gestión segura. Comprueba que la función esté desplegada.");
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+async function loadAdminTeam() {
+  const target = document.querySelector("#admin-users-list");
+  try {
+    const { admins, currentRole } = await managementRequest("list_admins");
+    target.innerHTML = admins.length ? admins.map((admin) => `<article class="record-row"><div><h3>${escapeHtml(admin.email)}</h3><p>${admin.role === "owner" ? "Titular" : "Administradora"} · acceso creado ${escapeHtml(fmtDate(admin.created_at))}${admin.last_sign_in_at ? ` · última entrada ${escapeHtml(fmtDate(admin.last_sign_in_at))}` : " · aún no ha iniciado sesión"}</p></div><div class="record-actions">${admin.role === "owner" ? `<span class="admin-owner-tag">Titular</span>` : ""}${admin.role !== "owner" || currentRole === "owner" ? `<button class="small-button danger" data-remove-admin="${admin.id}" type="button">Retirar acceso</button>` : ""}</div></article>`).join("") : `<p class="empty-state">Aún no hay administradores.</p>`;
+    target.querySelectorAll("[data-remove-admin]").forEach((button) => button.addEventListener("click", async () => {
+      if (!confirm("¿Retirar el acceso de administración a esta persona? Su cuenta seguirá existiendo, pero ya no podrá editar Caleta.")) return;
+      try { const result = await managementRequest("remove_admin", { user_id: button.dataset.removeAdmin }); setMessage(result.message, status); await loadAdminTeam(); }
+      catch (error) { setMessage(error.message, status); }
+    }));
+  } catch (error) {
+    target.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+document.querySelector("#invite-admin-form").addEventListener("submit", async (event) => {
+  event.preventDefault(); const form = event.currentTarget, button = form.querySelector("button[type=submit]");
+  button.disabled = true;
+  try { const result = await managementRequest("invite_admin", { email: form.elements.email.value }); setMessage(result.message, status); form.reset(); await loadAdminTeam(); }
+  catch (error) { setMessage(error.message, status); }
+  button.disabled = false;
+});
+
+async function loadNewsletterOverview() {
+  const subscriberList = document.querySelector("#newsletter-subscribers-list");
+  try {
+    const data = await managementRequest("newsletter_overview");
+    document.querySelector("#newsletter-active-count").textContent = data.active;
+    document.querySelector("#newsletter-pending-count").textContent = data.pending;
+    subscriberList.innerHTML = data.subscribers.length ? data.subscribers.map((item) => `<article class="record-row"><div><h3>${escapeHtml(item.email)}</h3><p>${item.status === "active" ? "Consentimiento confirmado" : "Pendiente de confirmar"} · solicitud ${escapeHtml(fmtDate(item.consented_at))}${item.confirmed_at ? ` · confirmado ${escapeHtml(fmtDate(item.confirmed_at))}` : ""}</p></div></article>`).join("") : `<p class="empty-state">La lista está vacía. Solo se añadirán direcciones cuando la persona se apunte y confirme su correo.</p>`;
+    const campaigns = document.querySelector("#newsletter-campaigns-list");
+    campaigns.innerHTML = data.campaigns.length ? data.campaigns.map((item) => `<article class="record-row"><div><h3>${escapeHtml(item.subject)}</h3><p>${escapeHtml(item.status)} · ${item.sent_count}/${item.recipient_count} enviados · ${item.failed_count} con error${item.created_at ? ` · ${escapeHtml(fmtDate(item.created_at))}` : ""}</p></div></article>`).join("") : `<p class="empty-state">Todavía no se han enviado noticias.</p>`;
+  } catch (error) {
+    subscriberList.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+document.querySelector("#newsletter-campaign-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget, button = form.querySelector("button[type=submit]"), count = Number(document.querySelector("#newsletter-active-count").textContent);
+  if (!count || !confirm(`Se enviará este correo a ${count} personas que confirmaron su consentimiento. ¿Continuar?`)) return;
+  button.disabled = true; setMessage("Preparando el envío seguro…", status);
+  try { const result = await managementRequest("send_campaign", { subject: form.elements.subject.value, body: form.elements.body.value }); setMessage(result.message, status); if (result.ok) form.reset(); await loadNewsletterOverview(); }
+  catch (error) { setMessage(error.message, status); }
+  button.disabled = false;
 });
 
 document.querySelectorAll("dialog").forEach((dialog) => dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); }));
