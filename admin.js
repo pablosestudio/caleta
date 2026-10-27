@@ -364,8 +364,12 @@ async function managementRequest(action, payload = {}) {
 
 async function loadAdminTeam() {
   const target = document.querySelector("#admin-users-list");
+  const emailStatus = document.querySelector("#team-email-status");
   try {
-    const { admins, currentRole } = await managementRequest("list_admins");
+    const { admins, currentRole, emailConfigured } = await managementRequest("list_admins");
+    emailStatus.textContent = emailConfigured
+      ? "El correo está configurado; puedes invitar a una persona nueva."
+      : "Sin proveedor de correo, solo podrás añadir cuentas que ya existan y estén confirmadas en Supabase. Las invitaciones nuevas requieren configurar Resend.";
     target.innerHTML = admins.length ? admins.map((admin) => `<article class="record-row"><div><h3>${escapeHtml(admin.email)}</h3><p>${admin.role === "owner" ? "Titular" : "Administradora"} · acceso creado ${escapeHtml(fmtDate(admin.created_at))}${admin.last_sign_in_at ? ` · última entrada ${escapeHtml(fmtDate(admin.last_sign_in_at))}` : " · aún no ha iniciado sesión"}</p></div><div class="record-actions">${admin.role === "owner" ? `<span class="admin-owner-tag">Titular</span>` : ""}${admin.role !== "owner" || currentRole === "owner" ? `<button class="small-button danger" data-remove-admin="${admin.id}" type="button">Retirar acceso</button>` : ""}</div></article>`).join("") : `<p class="empty-state">Aún no hay administradores.</p>`;
     target.querySelectorAll("[data-remove-admin]").forEach((button) => button.addEventListener("click", async () => {
       if (!confirm("¿Retirar el acceso de administración a esta persona? Su cuenta seguirá existiendo, pero ya no podrá editar Caleta.")) return;
@@ -374,6 +378,7 @@ async function loadAdminTeam() {
     }));
   } catch (error) {
     target.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+    emailStatus.textContent = "No se pudo cargar la gestión del equipo. Comprueba que la función segura esté desplegada y que la migración esté aplicada.";
   }
 }
 
@@ -389,6 +394,12 @@ async function loadNewsletterOverview() {
   const subscriberList = document.querySelector("#newsletter-subscribers-list");
   try {
     const data = await managementRequest("newsletter_overview");
+    const sendButton = document.querySelector("#newsletter-send-button");
+    const emailStatus = document.querySelector("#newsletter-email-status");
+    sendButton.disabled = !data.emailConfigured;
+    emailStatus.textContent = data.emailConfigured
+      ? "Resend está conectado. El envío solo incluye suscripciones confirmadas; todavía falta activar el formulario público de suscripción."
+      : "Resend aún no está configurado. No se enviarán correos; las solicitudes de reserva no se incorporan a esta lista.";
     document.querySelector("#newsletter-active-count").textContent = data.active;
     document.querySelector("#newsletter-pending-count").textContent = data.pending;
     subscriberList.innerHTML = data.subscribers.length ? data.subscribers.map((item) => `<article class="record-row"><div><h3>${escapeHtml(item.email)}</h3><p>${item.status === "active" ? "Consentimiento confirmado" : "Pendiente de confirmar"} · solicitud ${escapeHtml(fmtDate(item.consented_at))}${item.confirmed_at ? ` · confirmado ${escapeHtml(fmtDate(item.confirmed_at))}` : ""}</p></div></article>`).join("") : `<p class="empty-state">La lista está vacía. Solo se añadirán direcciones cuando la persona se apunte y confirme su correo.</p>`;
@@ -396,6 +407,8 @@ async function loadNewsletterOverview() {
     campaigns.innerHTML = data.campaigns.length ? data.campaigns.map((item) => `<article class="record-row"><div><h3>${escapeHtml(item.subject)}</h3><p>${escapeHtml(item.status)} · ${item.sent_count}/${item.recipient_count} enviados · ${item.failed_count} con error${item.created_at ? ` · ${escapeHtml(fmtDate(item.created_at))}` : ""}</p></div></article>`).join("") : `<p class="empty-state">Todavía no se han enviado noticias.</p>`;
   } catch (error) {
     subscriberList.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+    document.querySelector("#newsletter-send-button").disabled = true;
+    document.querySelector("#newsletter-email-status").textContent = "La gestión de noticias requiere desplegar la función segura y aplicar la migración.";
   }
 }
 

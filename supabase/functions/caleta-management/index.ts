@@ -117,7 +117,7 @@ async function newsletterOverview() {
     adminClient.from("newsletter_campaigns").select("id,subject,status,recipient_count,sent_count,failed_count,created_at,finished_at").order("created_at", { ascending: false }).limit(20),
   ]);
   if (activeError || pendingError || listError || campaignError) throw activeError || pendingError || listError || campaignError;
-  return { active: active || 0, pending: pending || 0, subscribers: subscribers || [], campaigns: campaigns || [] };
+  return { active: active || 0, pending: pending || 0, subscribers: subscribers || [], campaigns: campaigns || [], emailConfigured: Boolean(Deno.env.get("RESEND_API_KEY") && Deno.env.get("RESEND_FROM_EMAIL")) };
 }
 
 async function sendCampaign(actorId: string, subject: string, body: string) {
@@ -173,7 +173,7 @@ Deno.serve(async (request) => {
   try {
     let result: Record<string, unknown>;
     switch (body.action) {
-      case "list_admins": result = { admins: await listAdmins(), currentRole: auth.admin.role }; break;
+      case "list_admins": result = { admins: await listAdmins(), currentRole: auth.admin.role, emailConfigured: Boolean(Deno.env.get("RESEND_API_KEY") && Deno.env.get("RESEND_FROM_EMAIL")) }; break;
       case "invite_admin": result = await inviteAdmin(String(body.email || "")); break;
       case "remove_admin": result = await removeAdmin(String(body.user_id || ""), auth.admin.role); break;
       case "newsletter_overview": result = await newsletterOverview(); break;
