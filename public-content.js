@@ -56,22 +56,26 @@ function applyImages() {
     const url = safeImageUrl(images[node.dataset.siteImage]);
     if (node instanceof HTMLImageElement) {
       node.src = url || "assets/caleta-logo-main.png";
-    } else if (url) {
-      let image = node.querySelector(":scope > .workshop-photo");
+      continue;
+    }
+    const isWorkshop = node.classList.contains("workshop-image");
+    const imageClass = isWorkshop ? "workshop-photo" : "site-content-photo";
+    let image = node.querySelector(`:scope > .${imageClass}`);
+    if (url) {
       if (!image) {
-        node.classList.add("has-custom-image");
         image = document.createElement("img");
-        image.className = "workshop-photo";
+        image.className = imageClass;
         image.loading = "lazy";
         node.prepend(image);
       }
+      node.classList.add("has-custom-image");
       image.src = url;
-      image.alt = node.getAttribute("aria-label") || "Imagen de un taller de Caleta";
-      node.querySelectorAll(".sensory-art,.paint-art,.play-artwork").forEach((art) => art.hidden = true);
+      image.alt = node.getAttribute("aria-label") || "Imagen de Espacio Caleta";
+      node.querySelectorAll(".sensory-art,.paint-art,.play-artwork,:scope > i,:scope > b").forEach((art) => art.hidden = true);
     } else {
-      node.querySelector(":scope > .workshop-photo")?.remove();
+      image?.remove();
       node.classList.remove("has-custom-image");
-      node.querySelectorAll(".sensory-art,.paint-art,.play-artwork").forEach((art) => art.hidden = false);
+      node.querySelectorAll(".sensory-art,.paint-art,.play-artwork,:scope > i,:scope > b").forEach((art) => art.hidden = false);
     }
   }
 }
@@ -101,7 +105,7 @@ async function renderWorkshopSessions() {
     const duration = Math.max(1, Math.round((end - start) / 60000));
     const durationLabel = duration >= 60 ? `${Math.floor(duration / 60)} h${duration % 60 ? ` ${duration % 60} min` : ""}` : `${duration} min`;
     const img = safeImageUrl(item.image_url);
-    return `<article class="workshop-card"><div class="workshop-image has-custom-image">${img ? `<img class="workshop-photo" src="${escapeHtml(img)}" alt="Imagen del taller ${escapeHtml(item.title)}" loading="lazy">` : `<span class="session-image-placeholder">✳</span>`}<span class="image-label">${escapeHtml(date)}</span></div><div class="workshop-info"><div class="workshop-meta"><span>${escapeHtml(item.age_range || (language === "en" ? "ALL AGES" : "TODAS LAS EDADES"))}</span><span>${escapeHtml(durationLabel)}</span></div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.description || (language === "en" ? "A creative activity at Caleta." : "Una actividad creativa en Caleta."))}</p><p class="session-price">${item.indicative_price == null ? (language === "en" ? "Price on request" : "Precio a consultar") : `${Number(item.indicative_price).toFixed(2)} €`}${item.remaining_places != null ? ` · ${item.remaining_places} ${language === "en" ? "places left" : "plazas disponibles"}` : ""}</p><a href="#reservar" data-book-workshop="${item.item_id}" data-starts-at="${escapeHtml(item.starts_at)}" data-title="${escapeHtml(item.title)}">${language === "en" ? "Book a place" : "Solicitar plaza"} <span>↗</span></a></div></article>`;
+    return `<article class="workshop-card"><div class="workshop-image has-custom-image">${img ? `<img class="workshop-photo" src="${escapeHtml(img)}" alt="Imagen del taller ${escapeHtml(item.title)}" loading="lazy">` : `<span class="session-image-placeholder">Caleta ~</span>`}<span class="image-label">${escapeHtml(date)}</span></div><div class="workshop-info"><div class="workshop-meta"><span>${escapeHtml(item.age_range || (language === "en" ? "ALL AGES" : "TODAS LAS EDADES"))}</span><span>${escapeHtml(durationLabel)}</span></div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.description || (language === "en" ? "A creative activity at Caleta." : "Una actividad creativa en Caleta."))}</p><p class="session-price">${item.indicative_price == null ? (language === "en" ? "Price on request" : "Precio a consultar") : `${Number(item.indicative_price).toFixed(2)} €`}${item.remaining_places != null ? ` · ${item.remaining_places} ${language === "en" ? "places left" : "plazas disponibles"}` : ""}</p><a href="#reservar" data-book-workshop="${item.item_id}" data-starts-at="${escapeHtml(item.starts_at)}" data-title="${escapeHtml(item.title)}">${language === "en" ? "Book a place" : "Solicitar plaza"} <span>↗</span></a></div></article>`;
   }).join("");
   grid.querySelectorAll("[data-book-workshop]").forEach((link) => link.addEventListener("click", () => {
     const form = document.querySelector("#booking-form"), start = new Date(link.dataset.startsAt);

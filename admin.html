@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="admin.css?v=20261028-2">
+  <link rel="stylesheet" href="admin.css?v=20261028-3">
 </head>
 <body>
   <main class="admin-shell">
@@ -87,6 +87,6 @@
   <dialog id="workshop-dialog" class="editor-dialog"><form id="workshop-form"><button class="dialog-close" type="button" data-close aria-label="Cerrar">×</button><p class="eyebrow">PROGRAMACIÓN</p><h2 id="workshop-dialog-title">Nuevo taller</h2><input name="id" type="hidden"><label>Nombre<input name="title" maxlength="120" required></label><label>Descripción<textarea name="description" rows="3"></textarea></label><div class="form-row"><label>Fecha y hora<input name="starts_at" type="datetime-local" required></label><label>Duración (minutos)<input name="duration_minutes" type="number" min="15" step="15" value="60" required></label></div><div class="form-row"><label>Plazas<input name="capacity" type="number" min="1" max="200" required></label><label>Edad recomendada<input name="age_range" maxlength="40" placeholder="2–3 años"></label></div><label>Precio orientativo (€)<input name="indicative_price" type="number" min="0" step="0.01" placeholder="Consultar"></label><label>Imagen del taller<input name="image_file" type="file" accept="image/jpeg,image/png,image/webp,image/avif"></label><p class="panel-note" id="workshop-image-note">Imagen opcional; JPG, PNG, WebP o AVIF, máximo 5 MB.</p><button class="button button-dark" id="workshop-save-button" type="submit">Crear taller <span>↗</span></button></form></dialog>
   <dialog id="rate-dialog" class="editor-dialog"><form id="rate-form"><button class="dialog-close" type="button" data-close aria-label="Cerrar">×</button><p class="eyebrow">TARIFAS</p><h2>Añadir tarifa</h2><label>Concepto<input name="label" maxlength="100" placeholder="Mañana · lunes a jueves" required></label><div class="form-row"><label>Precio (€)<input name="amount" type="number" min="0" step="0.01" required></label><label>Validez desde<input name="valid_from" type="date"></label></div><label>Nota<textarea name="note" rows="2" placeholder="Condiciones o excepciones"></textarea></label><button class="button button-dark" type="submit">Guardar tarifa <span>↗</span></button></form></dialog>
   <script>window.CALETA_SUPABASE={url:"https://ifsrblhfxcxinhznvcwu.supabase.co",publishableKey:"sb_publishable_dvBtDJ5dkb0xPyV2M7XDuQ_7uVyeikE"};</script>
-  <script type="module" src="admin.js?v=20261028-2"></script>
+  <script type="module" src="admin.js?v=20261028-3"></script>
 </body>
 </html>
