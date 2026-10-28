@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
-import { resolveCaletaImage } from "./content-fields.js?v=20261028-5";
+import { resolveCaletaImage } from "./content-fields.js?v=20261028-6";
 
 async function initPublicContent() {
 const config = window.CALETA_SUPABASE || {};

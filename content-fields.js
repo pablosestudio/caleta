@@ -103,7 +103,7 @@ export const copyFields = [
 ].map(([key, label, es, en, type]) => ({ key, label, es, en, type }));
 
 export const imageFields = [
-  { key: "logo", label: "Logotipo de Caleta", alt: "Logotipo principal" },
+  { key: "logo", label: "Imagen principal de inicio", alt: "Estudio creativo de Caleta con su logotipo", defaultUrl: "assets/caleta-hero.webp" },
   { key: "feature1", label: "Imagen · Celebrar", alt: "Celebraciones en Espacio Caleta", defaultUrl: "assets/feature-celebrate.webp" },
   { key: "feature2", label: "Imagen · Crear", alt: "Talleres creativos en Espacio Caleta", defaultUrl: "assets/feature-create.webp" },
   { key: "feature3", label: "Imagen · Jugar", alt: "Juego en Espacio Caleta", defaultUrl: "assets/feature-play.webp" },
@@ -112,7 +112,8 @@ export const imageFields = [
   { key: "featured3", label: "Imagen taller destacado 3", alt: "Imagen del tercer taller destacado", defaultUrl: "assets/workshop-play-sharp.webp" }
 ];
 
-const sharpenedWorkshopSources = {
+const optimizedImageSources = {
+  logo: ["26c2b825-d83c-440c-974c-2347b25bd816.png", "assets/caleta-hero.webp"],
   featured1: ["474812e9-87e2-49eb-a0b8-09e212cf22e3.png", "assets/workshop-sensory-sharp.webp"],
   featured2: ["c7295ae6-8f77-4b6b-bc61-93faaea2900c.png", "assets/workshop-art-sharp.webp"],
   featured3: ["1aa9d2ac-5fb6-4a80-8d61-d851afea1894.png", "assets/workshop-play-sharp.webp"]
@@ -120,7 +121,7 @@ const sharpenedWorkshopSources = {
 
 export function resolveCaletaImage(key, url) {
   if (typeof url !== "string" || !url) return url;
-  const source = sharpenedWorkshopSources[key];
+  const source = optimizedImageSources[key];
   const filename = url.split(/[?#]/, 1)[0].split("/").pop();
   return source?.[0] === filename ? source[1] : url;
 }

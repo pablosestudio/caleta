@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
-import { copyFields, imageFields, themeFields, editorSections, sectionForCopy, resolveCaletaImage } from "./content-fields.js?v=20261028-5";
+import { copyFields, imageFields, themeFields, editorSections, sectionForCopy, resolveCaletaImage } from "./content-fields.js?v=20261028-6";
 
 const config = window.CALETA_SUPABASE || {};
 const configured = Boolean(config.url && config.publishableKey);
