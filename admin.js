@@ -1,6 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { copyFields, imageFields, themeFields, editorSections, sectionForCopy, resolveCaletaImage } from "./content-fields.js?v=20261028-6";
 
+const initialQuery = new URLSearchParams(location.search);
+const initialHash = new URLSearchParams(location.hash.slice(1));
+const authUrlParam = (key) => initialQuery.get(key) || initialHash.get(key) || "";
+const initialAuthError = authUrlParam("error_code") || authUrlParam("error") || authUrlParam("error_description");
+let inviteRequested = initialQuery.get("set-password") === "1" || authUrlParam("type") === "invite";
+let recoveryRequested = initialQuery.has("code") || initialQuery.has("token_hash") ||
+  authUrlParam("type") === "recovery" || inviteRequested;
+let recoveryInProgress = false;
 const config = window.CALETA_SUPABASE || {};
 const configured = Boolean(config.url && config.publishableKey);
 const supabase = configured ? createClient(config.url, config.publishableKey, {
@@ -25,6 +33,25 @@ const escapeHtml = (value = "") => String(value).replace(/[&<>"']/g, (char) => (
 function setMessage(text, target = message) { target.textContent = text; }
 function showLogin() { loginView.classList.remove("is-hidden"); dashboardView.classList.add("is-hidden"); document.querySelector("#recovery-view").classList.add("is-hidden"); }
 function showRecovery() { loginView.classList.add("is-hidden"); dashboardView.classList.add("is-hidden"); document.querySelector("#recovery-view").classList.remove("is-hidden"); }
+function clearAuthCallbackUrl() { history.replaceState(null, "", location.pathname); }
+function recoveryLinkErrorMessage() {
+  const details = `${authUrlParam("error_code")} ${authUrlParam("error")} ${authUrlParam("error_description")}`.toLowerCase();
+  return /expired|invalid|otp_expired|token/.test(details)
+    ? "Este enlace ha caducado o ya se ha utilizado. Vuelve al acceso y solicita uno nuevo."
+    : "No se pudo validar el enlace. Vuelve al acceso y solicita otro restablecimiento.";
+}
+function passwordUpdateErrorMessage(error) {
+  const details = `${error?.name || ""} ${error?.code || ""} ${error?.message || ""}`.toLowerCase();
+  if (/sessionmissing|session.*(missing|expired)|token.*(invalid|expired)|otp_expired|status.?401|status.?403/.test(details)) {
+    return "El enlace de recuperación ya no está activo. Vuelve al acceso y solicita uno nuevo.";
+  }
+  if (/weak_password|password.*(weak|short|length)|at least .*characters/.test(details)) {
+    return "La contraseña no cumple los requisitos de seguridad. Usa al menos 12 caracteres y prueba otra distinta.";
+  }
+  return error?.message
+    ? `No se pudo guardar la contraseña: ${error.message}`
+    : "No se pudo guardar la contraseña. Vuelve al acceso y solicita otro enlace.";
+}
 function showDashboard(user) {
   currentUser = user;
   loginView.classList.add("is-hidden"); document.querySelector("#recovery-view").classList.add("is-hidden"); dashboardView.classList.remove("is-hidden");
@@ -63,12 +90,31 @@ document.querySelector("#recovery-form").addEventListener("submit", async (event
   const fields = new FormData(event.currentTarget);
   const password = fields.get("password");
   if (password !== fields.get("confirmation")) return setMessage("Las contraseñas no coinciden.", document.querySelector("#recovery-message"));
-  const { error } = await supabase.auth.updateUser({ password });
-  if (error) return setMessage("No se pudo cambiar la contraseña. Comprueba que tenga al menos 12 caracteres.", document.querySelector("#recovery-message"));
-  await supabase.auth.signOut();
-  history.replaceState(null, "", location.pathname);
-  document.querySelector("#recovery-view").classList.add("is-hidden"); showLogin();
-  setMessage("Contraseña actualizada. Ya puedes iniciar sesión.");
+  const button = event.currentTarget.querySelector("button[type=submit]");
+  button.disabled = true;
+  try {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) return setMessage(passwordUpdateErrorMessage(error), document.querySelector("#recovery-message"));
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.email) document.querySelector('#login-form [name="email"]').value = session.user.email;
+    recoveryRequested = false; recoveryInProgress = false; inviteRequested = false;
+    await supabase.auth.signOut();
+    clearAuthCallbackUrl();
+    showLogin();
+    setMessage("Contraseña actualizada. Inicia sesión con el correo de Caleta y la nueva contraseña.");
+  } catch (error) {
+    setMessage(passwordUpdateErrorMessage(error), document.querySelector("#recovery-message"));
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.querySelector("#recovery-back").addEventListener("click", async () => {
+  recoveryRequested = false; recoveryInProgress = false; inviteRequested = false;
+  await supabase?.auth.signOut();
+  clearAuthCallbackUrl();
+  showLogin();
+  setMessage("Escribe el correo de administración y pulsa «He olvidado mi contraseña» para pedir otro enlace.");
 });
 
 document.querySelector("#logout").addEventListener("click", async () => {
@@ -76,9 +122,21 @@ document.querySelector("#logout").addEventListener("click", async () => {
 });
 if (supabase) {
   supabase.auth.onAuthStateChange((event, session) => {
-    const inviteFlow = new URLSearchParams(location.search).get("set-password") === "1" || new URLSearchParams(location.hash.slice(1)).get("type") === "invite";
-    if ((event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && inviteFlow)) && session?.user) return showRecovery();
-    if (!session?.user) return showLogin();
+    if (session?.user && (event === "PASSWORD_RECOVERY" || recoveryInProgress || recoveryRequested || (event === "SIGNED_IN" && inviteRequested))) {
+      recoveryInProgress = true; recoveryRequested = false; inviteRequested = false;
+      clearAuthCallbackUrl();
+      setMessage("", document.querySelector("#recovery-message"));
+      return showRecovery();
+    }
+    if (event === "INITIAL_SESSION" && initialAuthError) return showLogin();
+    if (!session?.user) {
+      if (recoveryInProgress) {
+        recoveryInProgress = false;
+        showLogin();
+        return setMessage("La sesión de recuperación ha caducado. Solicita un enlace nuevo.");
+      }
+      return showLogin();
+    }
     window.setTimeout(async () => {
       const { data, error } = await supabase.rpc("is_caleta_admin");
       if (!error && data === true) showDashboard(session.user);
@@ -429,4 +487,21 @@ document.querySelector("#newsletter-campaign-form").addEventListener("submit", a
 
 document.querySelectorAll("dialog").forEach((dialog) => dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); }));
 if (!configured) setMessage("El panel está listo, pero aún no se ha conectado la base de datos segura. No se guardan datos aquí.");
-else supabase.auth.getSession().then(({ data: { session } }) => { if (session) showDashboard(session.user); });
+else {
+  if (initialAuthError) {
+    showLogin();
+    setMessage(recoveryLinkErrorMessage());
+    clearAuthCallbackUrl();
+  }
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (initialAuthError) return showLogin();
+    if (!session) return;
+    if (recoveryInProgress || recoveryRequested || inviteRequested) {
+      recoveryInProgress = true; recoveryRequested = false; inviteRequested = false;
+      clearAuthCallbackUrl();
+      showRecovery();
+      return;
+    }
+    showDashboard(session.user);
+  });
+}
