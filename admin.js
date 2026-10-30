@@ -420,7 +420,14 @@ document.querySelector("#content-form").addEventListener("submit", async (event)
 
 async function managementRequest(action, payload = {}) {
   const { data, error } = await supabase.functions.invoke("caleta-management", { body: { action, ...payload } });
-  if (error) throw new Error(data?.error || "No se pudo conectar con la gestión segura. Comprueba que la función esté desplegada.");
+  if (error) {
+    let details = data?.error;
+    const response = error.context;
+    if (!details && response && typeof response.clone === "function") {
+      try { details = (await response.clone().json())?.error; } catch { /* La respuesta puede no incluir un cuerpo JSON. */ }
+    }
+    throw new Error(details || "No se pudo conectar con la gestión segura. Comprueba que la función esté desplegada.");
+  }
   if (data?.error) throw new Error(data.error);
   return data;
 }
@@ -447,10 +454,18 @@ async function loadAdminTeam() {
 
 document.querySelector("#invite-admin-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget, button = form.querySelector("button[type=submit]");
-  button.disabled = true;
-  try { const result = await managementRequest("invite_admin", { email: form.elements.email.value }); setMessage(result.message, status); form.reset(); await loadAdminTeam(); }
-  catch (error) { setMessage(error.message, status); }
-  button.disabled = false;
+  const emailStatus = document.querySelector("#team-email-status");
+  button.disabled = true; emailStatus.textContent = "Procesando la solicitud…";
+  try {
+    const result = await managementRequest("invite_admin", { email: form.elements.email.value });
+    form.reset();
+    await loadAdminTeam();
+    emailStatus.textContent = result.message;
+    setMessage(result.message, status);
+  } catch (error) {
+    emailStatus.textContent = error.message;
+    setMessage(error.message, status);
+  } finally { button.disabled = false; }
 });
 
 async function loadNewsletterOverview() {

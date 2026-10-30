@@ -75,6 +75,10 @@ async function inviteAdmin(email: string) {
     return { ok: true, message: "Cuenta existente añadida como administradora. Ya puede entrar con su contraseña." };
   }
 
+  if (!Deno.env.get("RESEND_API_KEY") || !Deno.env.get("RESEND_FROM_EMAIL")) {
+    return { error: "No se puede invitar todavía a un correo nuevo: falta configurar Resend y un remitente verificado en la función segura. Si esa persona ya tiene una cuenta confirmada en Supabase, puede añadirse igualmente.", status: 503 };
+  }
+
   const redirectTo = `${siteUrl}/admin.html?set-password=1`;
   const { data: invite, error: inviteError } = await adminClient.auth.admin.generateLink({ type: "invite", email: normalized, options: { redirectTo } });
   if (inviteError || !invite.user || !invite.properties?.action_link) throw inviteError || new Error("No se pudo generar la invitación segura.");
