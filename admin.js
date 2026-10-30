@@ -120,6 +120,30 @@ document.querySelector("#recovery-back").addEventListener("click", async () => {
 document.querySelector("#logout").addEventListener("click", async () => {
   await supabase?.auth.signOut(); currentUser = null; showLogin();
 });
+document.querySelector("#open-password-change").addEventListener("click", () => {
+  document.querySelector("#password-change-form").reset();
+  document.querySelector("#password-change-status").textContent = "";
+  document.querySelector("#password-change-dialog").showModal();
+});
+document.querySelector("#password-change-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget, fields = new FormData(form), password = String(fields.get("password") || ""), messageNode = document.querySelector("#password-change-status"), button = form.querySelector("button[type=submit]");
+  if (password !== fields.get("confirmation")) return setMessage("Las contraseñas no coinciden.", messageNode);
+  if (password.length < 12) return setMessage("Usa al menos 12 caracteres.", messageNode);
+  button.disabled = true; messageNode.textContent = "Guardando…";
+  try {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) return setMessage(passwordUpdateErrorMessage(error), messageNode);
+    form.reset(); document.querySelector("#password-change-dialog").close(); setMessage("Contraseña actualizada.", status);
+  } catch (error) {
+    setMessage(error.message || "No se pudo cambiar la contraseña.", messageNode);
+  } finally { button.disabled = false; }
+});
+function selectPanel(panelId) {
+  document.querySelectorAll(".tab").forEach((item) => item.classList.toggle("is-active", item.dataset.panel === panelId));
+  document.querySelectorAll(".panel").forEach((panel) => panel.classList.toggle("is-hidden", panel.id !== panelId));
+  document.querySelector(`[data-panel="${panelId}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
 if (supabase) {
   supabase.auth.onAuthStateChange((event, session) => {
     if (session?.user && (event === "PASSWORD_RECOVERY" || recoveryInProgress || recoveryRequested || (event === "SIGNED_IN" && inviteRequested))) {
@@ -146,9 +170,12 @@ if (supabase) {
 }
 
 document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => {
-  document.querySelectorAll(".tab").forEach((item) => item.classList.toggle("is-active", item === tab));
-  document.querySelectorAll(".panel").forEach((panel) => panel.classList.toggle("is-hidden", panel.id !== tab.dataset.panel));
+  selectPanel(tab.dataset.panel);
 }));
+document.querySelector("#open-content-panel").addEventListener("click", () => {
+  selectPanel("content-panel");
+  document.querySelector("#content-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+});
 document.querySelector("#previous-month").addEventListener("click", () => { monthCursor.setMonth(monthCursor.getMonth() - 1); loadCalendar(); });
 document.querySelector("#next-month").addEventListener("click", () => { monthCursor.setMonth(monthCursor.getMonth() + 1); loadCalendar(); });
 document.querySelector("#today-button").addEventListener("click", () => { monthCursor.setTime(Date.now()); loadCalendar(); });
@@ -320,11 +347,17 @@ document.querySelector("#rate-form").addEventListener("submit", (event) => saveD
 }), loadRates));
 
 async function loadContentEditor() {
+  const saveStatus = document.querySelector("#content-save-status");
   const { data, error } = await supabase.from("site_content").select("content").eq("id", "homepage").maybeSingle();
   if (error) {
-    document.querySelector("#content-fields").innerHTML = `<p class="empty-state">No se puede cargar el editor. Ejecuta la migración <code>202610270001_site_content_manager.sql</code> en Supabase y vuelve a entrar.</p>`;
+    const help = /does not exist|schema cache|42p01/i.test(error.message || "")
+      ? "Falta aplicar la migración del editor visual en Supabase."
+      : "Comprueba que tu cuenta conserva permisos de administración y que la migración del editor está aplicada.";
+    document.querySelector("#content-fields").innerHTML = `<p class="empty-state">${escapeHtml(help)} <span>${escapeHtml(error.message || "")}</span></p>`;
+    saveStatus.textContent = help;
     return;
   }
+  saveStatus.textContent = "Los textos, imágenes y colores se guardan en la base de datos segura de Caleta.";
   contentDraft = data?.content || { copy: { es: {}, en: {} }, images: {} };
   contentDraft.copy ||= { es: {}, en: {} }; contentDraft.copy.es ||= {}; contentDraft.copy.en ||= {}; contentDraft.images ||= {};
   const groups = editorSections.map((section, index) => {
@@ -414,8 +447,12 @@ document.querySelector("#content-form").addEventListener("submit", async (event)
   for (const locale of ["es", "en"]) {
     if (copy[locale].instagramUrl && !/^https:\/\/www\.instagram\.com\/[\w.]+\/?$/i.test(copy[locale].instagramUrl)) return setMessage("El enlace de Instagram debe ser una dirección válida de instagram.com.", status);
   }
+  const saveStatus = document.querySelector("#content-save-status"), button = event.currentTarget.querySelector("button[type=submit]");
+  button.disabled = true; saveStatus.textContent = "Guardando cambios…";
   const { error } = await supabase.from("site_content").upsert({ id: "homepage", content: { copy, images: contentDraft.images, theme } }, { onConflict: "id" });
-  setMessage(error ? "No se pudieron guardar los cambios. Comprueba los permisos y la migración." : "Contenido guardado. La web pública lo mostrará al actualizarse.", status);
+  button.disabled = false;
+  saveStatus.textContent = error ? `No se pudieron guardar los cambios: ${error.message}` : "Cambios guardados. La página pública ya puede mostrarlos.";
+  setMessage(error ? "No se guardaron los cambios de contenido." : "Contenido de la web guardado.", status);
 });
 
 async function managementRequest(action, payload = {}) {
@@ -435,12 +472,19 @@ async function managementRequest(action, payload = {}) {
 async function loadAdminTeam() {
   const target = document.querySelector("#admin-users-list");
   const emailStatus = document.querySelector("#team-email-status");
+  const createForm = document.querySelector("#create-admin-form");
+  const existingForm = document.querySelector("#add-existing-admin-form");
+  createForm.classList.add("is-hidden"); existingForm.classList.add("is-hidden");
   try {
-    const { admins, currentRole, emailConfigured } = await managementRequest("list_admins");
-    emailStatus.textContent = emailConfigured
-      ? "El correo está configurado; puedes invitar a una persona nueva."
-      : "Sin proveedor de correo, solo podrás añadir cuentas que ya existan y estén confirmadas en Supabase. Las invitaciones nuevas requieren configurar Resend.";
-    target.innerHTML = admins.length ? admins.map((admin) => `<article class="record-row"><div><h3>${escapeHtml(admin.email)}</h3><p>${admin.role === "owner" ? "Titular" : "Administradora"} · acceso creado ${escapeHtml(fmtDate(admin.created_at))}${admin.last_sign_in_at ? ` · última entrada ${escapeHtml(fmtDate(admin.last_sign_in_at))}` : " · aún no ha iniciado sesión"}</p></div><div class="record-actions">${admin.role === "owner" ? `<span class="admin-owner-tag">Titular</span>` : ""}${admin.role !== "owner" || currentRole === "owner" ? `<button class="small-button danger" data-remove-admin="${admin.id}" type="button">Retirar acceso</button>` : ""}</div></article>`).join("") : `<p class="empty-state">Aún no hay administradores.</p>`;
+    const { admins, currentRole, directAdminCreationAvailable } = await managementRequest("list_admins");
+    createForm.classList.toggle("is-hidden", currentRole !== "owner" || directAdminCreationAvailable !== true);
+    existingForm.classList.toggle("is-hidden", currentRole !== "owner");
+    emailStatus.textContent = currentRole !== "owner"
+      ? "La gestión de usuarios está reservada a la cuenta titular de Caleta."
+      : directAdminCreationAvailable === true
+        ? "Puedes crear accesos o añadir cuentas confirmadas. Comparte las credenciales nuevas por un canal privado."
+        : "La creación directa está preparada, pero falta actualizar la función segura de Supabase. Mientras tanto, puedes añadir una cuenta que ya exista y tenga el correo confirmado.";
+    target.innerHTML = admins.length ? admins.map((admin) => `<article class="record-row"><div><h3>${escapeHtml(admin.email)}</h3><p>${admin.role === "owner" ? "Titular" : "Administradora"} · acceso creado ${escapeHtml(fmtDate(admin.created_at))}${admin.last_sign_in_at ? ` · última entrada ${escapeHtml(fmtDate(admin.last_sign_in_at))}` : " · aún no ha iniciado sesión"}</p></div><div class="record-actions">${admin.role === "owner" ? `<span class="admin-owner-tag">Titular</span>` : currentRole === "owner" ? `<button class="small-button danger" data-remove-admin="${admin.id}" type="button">Retirar acceso</button>` : ""}</div></article>`).join("") : `<p class="empty-state">Aún no hay administradores.</p>`;
     target.querySelectorAll("[data-remove-admin]").forEach((button) => button.addEventListener("click", async () => {
       if (!confirm("¿Retirar el acceso de administración a esta persona? Su cuenta seguirá existiendo, pero ya no podrá editar Caleta.")) return;
       try { const result = await managementRequest("remove_admin", { user_id: button.dataset.removeAdmin }); setMessage(result.message, status); await loadAdminTeam(); }
@@ -452,12 +496,21 @@ async function loadAdminTeam() {
   }
 }
 
-document.querySelector("#invite-admin-form").addEventListener("submit", async (event) => {
+document.querySelector("#create-admin-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget, button = form.querySelector("button[type=submit]");
   const emailStatus = document.querySelector("#team-email-status");
-  button.disabled = true; emailStatus.textContent = "Procesando la solicitud…";
+  const payload = { email: form.elements.email.value, email_confirmation: form.elements.email_confirmation.value, password: form.elements.password.value };
+  if (payload.email.trim().toLowerCase() !== payload.email_confirmation.trim().toLowerCase()) {
+    emailStatus.textContent = "Los correos no coinciden. Revísalos antes de crear la cuenta.";
+    return;
+  }
+  if (payload.password.length < 12) {
+    emailStatus.textContent = "La contraseña debe tener al menos 12 caracteres.";
+    return;
+  }
+  button.disabled = true; emailStatus.textContent = "Creando cuenta segura…";
   try {
-    const result = await managementRequest("invite_admin", { email: form.elements.email.value });
+    const result = await managementRequest("create_admin", payload);
     form.reset();
     await loadAdminTeam();
     emailStatus.textContent = result.message;
@@ -465,6 +518,18 @@ document.querySelector("#invite-admin-form").addEventListener("submit", async (e
   } catch (error) {
     emailStatus.textContent = error.message;
     setMessage(error.message, status);
+  } finally { button.disabled = false; }
+});
+
+document.querySelector("#add-existing-admin-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget, button = form.querySelector("button[type=submit]"), emailStatus = document.querySelector("#team-email-status");
+  button.disabled = true; emailStatus.textContent = "Comprobando la cuenta…";
+  try {
+    const result = await managementRequest("invite_admin", { email: form.elements.email.value });
+    form.reset(); await loadAdminTeam(); emailStatus.textContent = result.message; setMessage(result.message, status);
+  } catch (error) {
+    emailStatus.textContent = error.message; setMessage(error.message, status);
   } finally { button.disabled = false; }
 });
 

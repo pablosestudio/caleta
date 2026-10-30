@@ -13,7 +13,7 @@ La web pública es estática y se conecta a Supabase para calendario, contenido 
 - Tarifas orientativas transcritas de la imagen facilitada; deben confirmarse antes de publicar.
 - El formulario de solicitud sigue en modo demostración y no envía ni almacena datos.
 - `/admin.html` contiene inicio de sesión, agenda, edición de talleres y un editor visual del contenido público agrupado por secciones, con vista previa inmediata.
-- El panel permite editar contenido en ambos idiomas, SEO, tarifas mostradas, colores, contacto, logotipo e imágenes. Las cuentas adicionales se invitan de forma segura; cada persona define su propia contraseña.
+- El panel permite editar contenido en ambos idiomas, SEO, tarifas mostradas, colores, contacto, logotipo e imágenes. La cuenta titular puede crear cuentas directamente desde el panel o añadir cuentas confirmadas; la gestión de accesos no depende de Resend.
 - Las herramientas de equipo y campañas por correo requieren desplegar `supabase/functions/caleta-management`. El envío masivo se mantiene inactivo hasta configurar Resend y publicar un flujo de suscripción y baja con consentimiento.
 
 ## Abrir localmente

@@ -61,7 +61,10 @@ async function listAdmins() {
   });
 }
 
-async function inviteAdmin(email: string) {
+async function inviteAdmin(email: string, actorRole: string) {
+  // Existing confirmed users may be granted access without an email provider.
+  // New invitations remain a separate, email-dependent flow.
+  if (actorRole !== "owner") return { error: "Solo la cuenta titular puede modificar el equipo administrador.", status: 403 };
   const normalized = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) || normalized.length > 254) return { error: "Escribe un correo válido.", status: 400 };
   const { data: userPage, error: listError } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
@@ -99,12 +102,60 @@ async function inviteAdmin(email: string) {
   return { ok: true, message: `Invitación enviada a ${normalized}. La persona definirá su contraseña desde el enlace.` };
 }
 
+async function createAdminAccount(email: string, emailConfirmation: string, password: string, actorRole: string) {
+  if (actorRole !== "owner") return { error: "Solo la cuenta titular puede crear otros accesos administradores.", status: 403 };
+  const normalized = email.trim().toLowerCase();
+  const confirmedEmail = emailConfirmation.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) || normalized.length > 254) return { error: "Escribe un correo válido.", status: 400 };
+  if (confirmedEmail !== normalized) return { error: "Los correos no coinciden. Revísalos antes de crear la cuenta.", status: 400 };
+  if (password.length < 12 || password.length > 128) return { error: "La contraseña debe tener entre 12 y 128 caracteres.", status: 400 };
+
+  const { data: userPage, error: listError } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (listError) throw listError;
+  if (userPage.users.some((user) => user.email?.toLowerCase() === normalized)) return { error: "Ese correo ya tiene una cuenta en Supabase. Comprueba el correo o añade la cuenta existente desde el panel.", status: 409 };
+
+  const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+    email: normalized,
+    password,
+    email_confirm: true,
+  });
+  if (createError || !created.user) {
+    const message = createError?.message?.toLowerCase() || "";
+    if (/already|registered|exists|duplicate/.test(message)) return { error: "Ese correo ya tiene una cuenta en Supabase.", status: 409 };
+    return { error: createError?.message || "Supabase no pudo crear la cuenta.", status: 400 };
+  }
+
+  const { error: roleError } = await adminClient.from("caleta_admins").insert({ user_id: created.user.id, role: "admin" });
+  if (roleError) {
+    await adminClient.auth.admin.deleteUser(created.user.id);
+    if (roleError.code === "23505") return { error: "La cuenta ya tiene permisos de administración.", status: 409 };
+    throw roleError;
+  }
+  return { ok: true, message: `Cuenta creada para ${normalized}. Comparte la contraseña por un canal privado; no se ha enviado ningún correo.` };
+}
+
+async function addExistingAdmin(email: string, actorRole: string) {
+  if (actorRole !== "owner") return { error: "Solo la cuenta titular puede modificar el equipo administrador.", status: 403 };
+  const normalized = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) || normalized.length > 254) return { error: "Escribe un correo válido.", status: 400 };
+  const { data, error } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (error) throw error;
+  const user = data.users.find((item) => item.email?.toLowerCase() === normalized);
+  if (!user) return { error: "No existe una cuenta con ese correo. Usa el formulario para crear una cuenta nueva.", status: 404 };
+  if (!user.email_confirmed_at) return { error: "Ese correo aún no está confirmado en Supabase. Confírmalo o crea la cuenta desde el formulario superior.", status: 409 };
+  const { error: roleError } = await adminClient.from("caleta_admins").insert({ user_id: user.id, role: "admin" });
+  if (roleError?.code === "23505") return { error: "Esa cuenta ya tiene acceso de administración.", status: 409 };
+  if (roleError) throw roleError;
+  return { ok: true, message: `Se ha dado acceso de administración a ${normalized}. Puede entrar con su contraseña actual.` };
+}
+
 async function removeAdmin(id: string, actorRole: string) {
+  if (actorRole !== "owner") return { error: "Solo la cuenta titular puede modificar el equipo administrador.", status: 403 };
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { error: "Cuenta no válida.", status: 400 };
   const { data: target, error: targetError } = await adminClient.from("caleta_admins").select("user_id,role").eq("user_id", id).maybeSingle();
   if (targetError) throw targetError;
   if (!target) return { error: "La cuenta ya no figura como administradora.", status: 404 };
-  if (target.role === "owner" && actorRole !== "owner") return { error: "Solo la persona titular puede retirar su cuenta.", status: 403 };
+  if (target.role === "owner") return { error: "La cuenta titular no se puede retirar desde el panel.", status: 409 };
   const { count, error: countError } = await adminClient.from("caleta_admins").select("user_id", { count: "exact", head: true });
   if (countError) throw countError;
   if ((count || 0) <= 1) return { error: "Debe quedar al menos una cuenta administradora.", status: 409 };
@@ -177,8 +228,10 @@ Deno.serve(async (request) => {
   try {
     let result: Record<string, unknown>;
     switch (body.action) {
-      case "list_admins": result = { admins: await listAdmins(), currentRole: auth.admin.role, emailConfigured: Boolean(Deno.env.get("RESEND_API_KEY") && Deno.env.get("RESEND_FROM_EMAIL")) }; break;
-      case "invite_admin": result = await inviteAdmin(String(body.email || "")); break;
+      case "list_admins": result = { admins: await listAdmins(), currentRole: auth.admin.role, emailConfigured: Boolean(Deno.env.get("RESEND_API_KEY") && Deno.env.get("RESEND_FROM_EMAIL")), directAdminCreationAvailable: true }; break;
+      case "invite_admin": result = await inviteAdmin(String(body.email || ""), auth.admin.role); break;
+      case "create_admin": result = await createAdminAccount(String(body.email || ""), String(body.email_confirmation || ""), String(body.password || ""), auth.admin.role); break;
+      case "add_existing_admin": result = await addExistingAdmin(String(body.email || ""), auth.admin.role); break;
       case "remove_admin": result = await removeAdmin(String(body.user_id || ""), auth.admin.role); break;
       case "newsletter_overview": result = await newsletterOverview(); break;
       case "send_campaign": result = await sendCampaign(auth.user.id, String(body.subject || ""), String(body.body || "")); break;
