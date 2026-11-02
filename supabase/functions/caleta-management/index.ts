@@ -9,6 +9,36 @@ const corsHeaders = {
 const json = (status: number, body: Record<string, unknown>) => new Response(JSON.stringify(body), {
   status, headers: { ...corsHeaders, "Content-Type": "application/json" },
 });
+function adminSchemaProblem(error: { code?: string; message?: string }) {
+  const detail = `${error.code || ""} ${error.message || ""}`.toLowerCase();
+  if (detail.includes("caleta_only_one_admin")) {
+    return { error: "La base de datos aún conserva el límite de un solo administrador. Aplica la migración 202611020001_admin_team_repair.sql en Supabase.", status: 503 };
+  }
+  if (/relation.{0,80}caleta_admins.{0,40}(does not exist|not found)/.test(detail)) {
+    return { error: "No existe la tabla de administradores en la base de datos. Aplica las migraciones de Caleta en Supabase.", status: 503 };
+  }
+  if (/role.{0,60}(does not exist|schema cache|could not find)|could not find.{0,60}role/.test(detail)) {
+    return { error: "Falta actualizar el esquema del equipo administrador. Aplica la migración 202611020001_admin_team_repair.sql en Supabase.", status: 503 };
+  }
+  return null;
+}
+
+function managementFailure(error: unknown) {
+  const reference = crypto.randomUUID();
+  const details = error instanceof Error ? error.message : String(error);
+  const code = typeof error === "object" && error !== null && "code" in error ? String((error as { code?: unknown }).code || "") : "";
+  console.error(`Caleta management request failed (${reference})`, { code, details });
+  const lower = `${code} ${details}`.toLowerCase();
+  const schemaProblem = adminSchemaProblem({ code, message: details });
+  if (schemaProblem) return json(schemaProblem.status, { error: schemaProblem.error, reference });
+  if (/resend|sender|domain.*verif|remitente/.test(lower)) {
+    return json(503, { error: "No se pudo enviar el correo de invitación. Revisa la configuración de Resend y el remitente verificado.", reference });
+  }
+  if (/service.?role|invalid api key|permission denied|not authorized/.test(lower)) {
+    return json(503, { error: "La función segura no tiene configurados los permisos de Supabase necesarios para gestionar cuentas.", reference });
+  }
+  return json(500, { error: "No se pudo completar la acción. Consulta los registros de caleta-management con esta referencia.", reference });
+}
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
 }[char]!));
@@ -73,6 +103,8 @@ async function inviteAdmin(email: string, actorRole: string) {
   if (existing) {
     if (!existing.email_confirmed_at) return { error: "Ya existe una invitación pendiente para ese correo. Revisa Auth → Users en Supabase.", status: 409 };
     const { error } = await adminClient.from("caleta_admins").insert({ user_id: existing.id, role: "admin" });
+    const schemaProblem = error && adminSchemaProblem(error);
+    if (schemaProblem) return schemaProblem;
     if (error?.code === "23505") return { error: "Ese usuario ya es administrador.", status: 409 };
     if (error) throw error;
     return { ok: true, message: "Cuenta existente añadida como administradora. Ya puede entrar con su contraseña." };
@@ -88,6 +120,8 @@ async function inviteAdmin(email: string, actorRole: string) {
   const { error: roleError } = await adminClient.from("caleta_admins").insert({ user_id: invite.user.id, role: "admin" });
   if (roleError) {
     await adminClient.auth.admin.deleteUser(invite.user.id);
+    const schemaProblem = adminSchemaProblem(roleError);
+    if (schemaProblem) return schemaProblem;
     if (roleError.code === "23505") return { error: "Ese usuario ya es administrador.", status: 409 };
     throw roleError;
   }
@@ -128,6 +162,8 @@ async function createAdminAccount(email: string, emailConfirmation: string, pass
   const { error: roleError } = await adminClient.from("caleta_admins").insert({ user_id: created.user.id, role: "admin" });
   if (roleError) {
     await adminClient.auth.admin.deleteUser(created.user.id);
+    const schemaProblem = adminSchemaProblem(roleError);
+    if (schemaProblem) return schemaProblem;
     if (roleError.code === "23505") return { error: "La cuenta ya tiene permisos de administración.", status: 409 };
     throw roleError;
   }
@@ -144,6 +180,8 @@ async function addExistingAdmin(email: string, actorRole: string) {
   if (!user) return { error: "No existe una cuenta con ese correo. Usa el formulario para crear una cuenta nueva.", status: 404 };
   if (!user.email_confirmed_at) return { error: "Ese correo aún no está confirmado en Supabase. Confírmalo o crea la cuenta desde el formulario superior.", status: 409 };
   const { error: roleError } = await adminClient.from("caleta_admins").insert({ user_id: user.id, role: "admin" });
+  const schemaProblem = roleError && adminSchemaProblem(roleError);
+  if (schemaProblem) return schemaProblem;
   if (roleError?.code === "23505") return { error: "Esa cuenta ya tiene acceso de administración.", status: 409 };
   if (roleError) throw roleError;
   return { ok: true, message: `Se ha dado acceso de administración a ${normalized}. Puede entrar con su contraseña actual.` };
@@ -239,7 +277,6 @@ Deno.serve(async (request) => {
     }
     return json(typeof result.status === "number" ? result.status as number : 200, result);
   } catch (error) {
-    console.error("Caleta management request failed", error);
-    return json(500, { error: "No se pudo completar la acción. Revisa los registros de la función." });
+    return managementFailure(error);
   }
 });

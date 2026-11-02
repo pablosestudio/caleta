@@ -459,13 +459,18 @@ async function managementRequest(action, payload = {}) {
   const { data, error } = await supabase.functions.invoke("caleta-management", { body: { action, ...payload } });
   if (error) {
     let details = data?.error;
+    let reference = data?.reference;
     const response = error.context;
     if (!details && response && typeof response.clone === "function") {
-      try { details = (await response.clone().json())?.error; } catch { /* La respuesta puede no incluir un cuerpo JSON. */ }
+      try {
+        const body = await response.clone().json();
+        details = body?.error;
+        reference = body?.reference;
+      } catch { /* La respuesta puede no incluir un cuerpo JSON. */ }
     }
-    throw new Error(details || "No se pudo conectar con la gestión segura. Comprueba que la función esté desplegada.");
+    throw new Error(`${details || "No se pudo conectar con la gestión segura. Comprueba que la función esté desplegada."}${reference ? ` (referencia: ${reference})` : ""}`);
   }
-  if (data?.error) throw new Error(data.error);
+  if (data?.error) throw new Error(`${data.error}${data.reference ? ` (referencia: ${data.reference})` : ""}`);
   return data;
 }
 
