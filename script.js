@@ -24,7 +24,19 @@ function applyTranslations() {
   languageButton.textContent = language === "es" ? "EN" : "ES";
   document.querySelectorAll("[data-i18n]").forEach((node) => {
     const override = window.CALETA_SITE_COPY?.[language]?.[node.dataset.i18n];
-    if (typeof override === "string") { node.textContent = override; node.style.whiteSpace = "pre-line"; return; }
+    if (typeof override === "string") {
+      if (node.dataset.i18n === "heroTitle") {
+        const highlight = override.match(/(en Caleta\.|at Caleta\.)\s*$/i);
+        if (highlight) {
+          node.replaceChildren(document.createTextNode(override.slice(0, highlight.index)));
+          const emphasis = document.createElement("em");
+          emphasis.textContent = highlight[1];
+          node.append(emphasis);
+        } else node.textContent = override;
+      } else node.textContent = override;
+      node.style.whiteSpace = "pre-line";
+      return;
+    }
     node.style.removeProperty("white-space");
     const value = language === "es"
       ? spanishLabels.get(node.dataset.i18n)
